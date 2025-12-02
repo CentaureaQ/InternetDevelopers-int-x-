@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sspku.agent.module.agent.mapper.UserPluginRelationMapper">
+
+    <insert id="insertOrUpdate">
+        INSERT INTO user_plugin_rel (user_id, plugin_id)
+        VALUES
+        <foreach collection="pluginIds" item="pluginId" separator=",">
+            (#{userId}, #{pluginId})
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+            updated_at = CURRENT_TIMESTAMP
+    </insert>
+
+</mapper>

@@ -1,18 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.health.agent.module.agent.mapper.AgentMapper">
+<mapper namespace="com.sspku.agent.module.agent.mapper.AgentMapper">
 
-    <resultMap id="AgentResultMap" type="com.health.agent.module.agent.entity.Agent">
+    <resultMap id="AgentResultMap" type="com.sspku.agent.module.agent.entity.Agent">
         <id column="id" property="id"/>
         <result column="name" property="name"/>
         <result column="description" property="description"/>
         <result column="system_prompt" property="systemPrompt"/>
         <result column="user_prompt_template" property="userPromptTemplate"/>
         <result column="model_config" property="modelConfig"/>
-        <result column="workflow_id" property="workflowId"/>
-        <result column="knowledge_base_ids" property="knowledgeBaseIds"/>
-        <result column="plugin_ids" property="pluginIds"/>
         <result column="status" property="status"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
@@ -20,11 +17,11 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO agent
-        (name, description, system_prompt, user_prompt_template, model_config, workflow_id,
-         knowledge_base_ids, plugin_ids, status)
+        (name, description, system_prompt, user_prompt_template, model_config,
+         status)
         VALUES
         (#{name}, #{description}, #{systemPrompt}, #{userPromptTemplate}, #{modelConfig},
-         #{workflowId}, #{knowledgeBaseIds}, #{pluginIds}, #{status})
+         #{status})
     </insert>
 
     <update id="update">
@@ -35,9 +32,6 @@
             <if test="systemPrompt != null">system_prompt = #{systemPrompt},</if>
             <if test="userPromptTemplate != null">user_prompt_template = #{userPromptTemplate},</if>
             <if test="modelConfig != null">model_config = #{modelConfig},</if>
-            <if test="workflowId != null">workflow_id = #{workflowId},</if>
-            <if test="knowledgeBaseIds != null">knowledge_base_ids = #{knowledgeBaseIds},</if>
-            <if test="pluginIds != null">plugin_ids = #{pluginIds},</if>
             <if test="status != null">status = #{status},</if>
         </set>
         WHERE id = #{id}

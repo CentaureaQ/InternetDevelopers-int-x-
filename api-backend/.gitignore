@@ -40,6 +40,6 @@ error*.log
 output*.log
 
 ### Application Config ###
-application.yml
+!application.yml
 !application.example.yml
 !application-prod.yml

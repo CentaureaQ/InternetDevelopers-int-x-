@@ -20,48 +20,42 @@ CREATE TABLE IF NOT EXISTS `user` (
   `nickname` VARCHAR(50) NULL COMMENT '昵称',
   `email` VARCHAR(100) NULL COMMENT '邮箱',
   `phone` VARCHAR(20) NULL COMMENT '手机号',
-  `avatar` VARCHAR(255) NULL COMMENT '头像URL',
-  `status` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '状态 0-禁用 1-正常',
-  `last_login_time` DATETIME NULL COMMENT '最后登录时间',
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  `is_deleted` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否删除',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_username` (`username`),
   KEY `idx_email` (`email`),
   KEY `idx_phone` (`phone`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
 
--- 2. 管理员表（可选：保留用于后台管理）
-CREATE TABLE IF NOT EXISTS `admin` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '管理员ID',
-  `username` VARCHAR(50) NOT NULL COMMENT '用户名',
-  `password` VARCHAR(255) NOT NULL COMMENT '密码',
-  `nickname` VARCHAR(50) NULL COMMENT '昵称',
-  `email` VARCHAR(100) NULL COMMENT '邮箱',
-  `phone` VARCHAR(20) NULL COMMENT '手机号',
-  `role_id` BIGINT NULL COMMENT '角色ID',
-  `status` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '状态 0-禁用 1-正常',
-  `last_login_time` DATETIME NULL COMMENT '最后登录时间',
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  `is_deleted` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否删除',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_admin_username` (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='管理员表';
+-- 2. 管理员表（暂未使用，可按需开启）
+-- CREATE TABLE IF NOT EXISTS `admin` (
+--   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '管理员ID',
+--   `username` VARCHAR(50) NOT NULL COMMENT '用户名',
+--   `password` VARCHAR(255) NOT NULL COMMENT '密码',
+--   `nickname` VARCHAR(50) NULL COMMENT '昵称',
+--   `email` VARCHAR(100) NULL COMMENT '邮箱',
+--   `phone` VARCHAR(20) NULL COMMENT '手机号',
+--   `role_id` BIGINT NULL COMMENT '角色ID',
+--   `status` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '状态 0-禁用 1-正常',
+--   `last_login_time` DATETIME NULL COMMENT '最后登录时间',
+--   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+--   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+--   `is_deleted` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否删除',
+--   PRIMARY KEY (`id`),
+--   UNIQUE KEY `uk_admin_username` (`username`)
+-- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='管理员表';
 
--- 3. 角色表（简单权限模型）
-CREATE TABLE IF NOT EXISTS `role` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '角色ID',
-  `name` VARCHAR(50) NOT NULL COMMENT '角色名称',
-  `code` VARCHAR(50) NOT NULL COMMENT '角色编码',
-  `description` VARCHAR(200) NULL COMMENT '描述',
-  `status` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '状态 0-禁用 1-启用',
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_code` (`code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色表';
+-- 3. 角色表（暂未使用，可按需开启）
+-- CREATE TABLE IF NOT EXISTS `role` (
+--   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '角色ID',
+--   `name` VARCHAR(50) NOT NULL COMMENT '角色名称',
+--   `code` VARCHAR(50) NOT NULL COMMENT '角色编码',
+--   `description` VARCHAR(200) NULL COMMENT '描述',
+--   `status` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '状态 0-禁用 1-启用',
+--   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+--   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+--   PRIMARY KEY (`id`),
+--   UNIQUE KEY `uk_code` (`code`)
+-- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色表';
 
 
 
@@ -86,9 +80,6 @@ CREATE TABLE IF NOT EXISTS `agent` (
     `system_prompt` TEXT COMMENT '系统提示词',
     `user_prompt_template` TEXT COMMENT '用户提示词模板',
     `model_config` JSON COMMENT '模型配置: {"provider": "deepseek", "model": "deepseek-chat", "temperature": 0.7}',
-    `workflow_id` BIGINT COMMENT '关联的工作流ID',
-    `knowledge_base_ids` JSON COMMENT '关联的知识库ID列表: [1, 2, 3]',
-    `plugin_ids` JSON COMMENT '关联的插件ID列表: [101, 102]',
     `status` VARCHAR(20) DEFAULT 'draft' COMMENT '状态: draft(草稿)/published(已发布)',
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -96,51 +87,48 @@ CREATE TABLE IF NOT EXISTS `agent` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='智能体表';
 
 -- ============================================
--- 2. 工作流表 (workflow)
--- 对应用户故事: US-008, US-009
+-- 2. 工作流表 (workflow) —— 暂未启用，可按需恢复
 -- ============================================
-CREATE TABLE IF NOT EXISTS `workflow` (
-    `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
-    `name` VARCHAR(100) NOT NULL COMMENT '工作流名称',
-    `description` VARCHAR(500) COMMENT '描述',
-    `nodes` JSON COMMENT '节点列表: [{"id": "node1", "type": "start", "config": {}}]',
-    `edges` JSON COMMENT '边列表: [{"source": "node1", "target": "node2"}]',
-    `config` JSON COMMENT '全局配置',
-    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='工作流表';
+-- CREATE TABLE IF NOT EXISTS `workflow` (
+--     `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+--     `name` VARCHAR(100) NOT NULL COMMENT '工作流名称',
+--     `description` VARCHAR(500) COMMENT '描述',
+--     `nodes` JSON COMMENT '节点列表: [{"id": "node1", "type": "start", "config": {}}]',
+--     `edges` JSON COMMENT '边列表: [{"source": "node1", "target": "node2"}]',
+--     `config` JSON COMMENT '全局配置',
+--     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+--     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+-- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='工作流表';
 
 -- ============================================
--- 3. 知识库表 (knowledge_base)
--- 对应用户故事: US-005
+-- 3. 知识库表 (knowledge_base) —— 暂未启用，可按需恢复
 -- ============================================
-CREATE TABLE IF NOT EXISTS `knowledge_base` (
-    `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
-    `name` VARCHAR(100) NOT NULL COMMENT '知识库名称',
-    `description` VARCHAR(500) COMMENT '描述',
-    `vector_db_type` VARCHAR(50) DEFAULT 'milvus' COMMENT '向量库类型: milvus/chroma',
-    `chunk_size` INT DEFAULT 512 COMMENT '分块大小(字符数)',
-    `chunk_overlap` INT DEFAULT 50 COMMENT '分块重叠(字符数)',
-    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='知识库表';
+-- CREATE TABLE IF NOT EXISTS `knowledge_base` (
+--     `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+--     `name` VARCHAR(100) NOT NULL COMMENT '知识库名称',
+--     `description` VARCHAR(500) COMMENT '描述',
+--     `vector_db_type` VARCHAR(50) DEFAULT 'milvus' COMMENT '向量库类型: milvus/chroma',
+--     `chunk_size` INT DEFAULT 512 COMMENT '分块大小(字符数)',
+--     `chunk_overlap` INT DEFAULT 50 COMMENT '分块重叠(字符数)',
+--     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+--     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+-- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='知识库表';
 
 -- ============================================
--- 4. 文档表 (document)
--- 对应用户故事: US-006, US-007
+-- 4. 文档表 (document) —— 暂未启用，可按需恢复
 -- ============================================
-CREATE TABLE IF NOT EXISTS `document` (
-    `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
-    `knowledge_base_id` BIGINT NOT NULL COMMENT '所属知识库ID',
-    `filename` VARCHAR(255) NOT NULL COMMENT '文件名',
-    `content` LONGTEXT COMMENT '文件原始内容(TXT/Markdown)',
-    `chunks` JSON COMMENT '分块后的文本列表: ["chunk1", "chunk2"]',
-    `vector_ids` JSON COMMENT '向量数据库返回的Vector ID列表: ["vec_1", "vec_2"]',
-    `status` VARCHAR(20) DEFAULT 'pending' COMMENT '状态: pending(待处理)/processing(处理中)/success(成功)/failed(失败)',
-    `uploaded_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '上传时间',
-    INDEX `idx_kb_id` (`knowledge_base_id`),
-    INDEX `idx_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文档表';
+-- CREATE TABLE IF NOT EXISTS `document` (
+--     `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+--     `knowledge_base_id` BIGINT NOT NULL COMMENT '所属知识库ID',
+--     `filename` VARCHAR(255) NOT NULL COMMENT '文件名',
+--     `content` LONGTEXT COMMENT '文件原始内容(TXT/Markdown)',
+--     `chunks` JSON COMMENT '分块后的文本列表: ["chunk1", "chunk2"]',
+--     `vector_ids` JSON COMMENT '向量数据库返回的Vector ID列表: ["vec_1", "vec_2"]',
+--     `status` VARCHAR(20) DEFAULT 'pending' COMMENT '状态: pending(待处理)/processing(处理中)/success(成功)/failed(失败)',
+--     `uploaded_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '上传时间',
+--     INDEX `idx_kb_id` (`knowledge_base_id`),
+--     INDEX `idx_status` (`status`)
+-- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文档表';
 
 -- ============================================
 -- 5. 插件表 (plugin)
@@ -157,12 +145,62 @@ CREATE TABLE IF NOT EXISTS `plugin` (
     `status` VARCHAR(20) DEFAULT 'disabled' COMMENT '插件状态: enabled(启用)/disabled(禁用)',
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `is_deleted` TINYINT(1) DEFAULT 0 COMMENT '是否删除: 0-未删除, 1-已删除',
     UNIQUE KEY `uk_name` (`name`),
     INDEX `idx_type` (`type`),
-    INDEX `idx_status` (`status`),
-    INDEX `idx_deleted` (`is_deleted`)
+    INDEX `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='插件表';
+
+-- ============================================
+-- 6. 用户-智能体关联表 (user_agent_rel)
+-- 记录用户与智能体的归属/协作关系
+-- ============================================
+CREATE TABLE IF NOT EXISTS `user_agent_rel` (
+  `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+  `user_id` BIGINT NOT NULL COMMENT '用户ID',
+  `agent_id` BIGINT NOT NULL COMMENT '智能体ID',
+  `relation_type` VARCHAR(20) NOT NULL DEFAULT 'owner' COMMENT '关系类型: owner(拥有者)/editor(协作者)/viewer(只读)',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  UNIQUE KEY `uk_user_agent` (`user_id`, `agent_id`),
+  KEY `idx_agent_relation` (`agent_id`, `relation_type`),
+  CONSTRAINT `fk_user_agent_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_user_agent_agent` FOREIGN KEY (`agent_id`) REFERENCES `agent` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户-智能体关联表';
+
+-- ============================================
+-- 7. 智能体-插件关联表 (agent_plugin_rel)
+-- 存储每个智能体所挂载的插件列表，以及插件顺序和个性化配置
+-- ============================================
+CREATE TABLE IF NOT EXISTS `agent_plugin_rel` (
+  `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+  `agent_id` BIGINT NOT NULL COMMENT '智能体ID',
+  `plugin_id` BIGINT NOT NULL COMMENT '插件ID',
+  `sort_order` INT NOT NULL DEFAULT 0 COMMENT '插件执行顺序(从0开始)',
+  `config` JSON NULL COMMENT '插件个性化配置(JSON)',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  UNIQUE KEY `uk_agent_plugin` (`agent_id`, `plugin_id`),
+  KEY `idx_plugin` (`plugin_id`),
+  CONSTRAINT `fk_agent_plugin_agent` FOREIGN KEY (`agent_id`) REFERENCES `agent` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_agent_plugin_plugin` FOREIGN KEY (`plugin_id`) REFERENCES `plugin` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='智能体-插件关联表';
+
+-- ============================================
+-- 8. 用户-插件关联表 (user_plugin_rel)
+-- 记录用户已启用/授权的插件，便于后续做权限校验
+-- ============================================
+CREATE TABLE IF NOT EXISTS `user_plugin_rel` (
+  `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+  `user_id` BIGINT NOT NULL COMMENT '用户ID',
+  `plugin_id` BIGINT NOT NULL COMMENT '插件ID',
+  `status` VARCHAR(20) NOT NULL DEFAULT 'enabled' COMMENT '状态: enabled/disabled',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  UNIQUE KEY `uk_user_plugin` (`user_id`, `plugin_id`),
+  KEY `idx_plugin_status` (`plugin_id`, `status`),
+  CONSTRAINT `fk_user_plugin_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_user_plugin_plugin` FOREIGN KEY (`plugin_id`) REFERENCES `plugin` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户-插件关联表';
 
 -- ============================================
 -- 显示创建的表

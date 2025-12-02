@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: sspku_agent-api
+
+  profiles:
+    active: dev   # 默认启用 application-dev.yml
+
+server:
+  servlet:
+    context-path: /   # 如果所有环境都相同，可以放这里

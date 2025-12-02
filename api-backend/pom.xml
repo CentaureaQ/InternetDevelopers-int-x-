@@ -9,11 +9,11 @@
         <relativePath/>
     </parent>
     
-    <groupId>com.health</groupId>
+    <groupId>com.sspku</groupId>
     <artifactId>test-api</artifactId>
     <version>1.0.0</version>
-    <name>health-agent-api</name>
-    <description>基础测试后端</description>
+    <name>sspku-agent</name>
+    <description>智能体编排平台后端</description>
     
     <properties>
         <java.version>17</java.version>

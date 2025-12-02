@@ -19,43 +19,39 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '注册' }
   },
   {
-    path: '/console',
-    component: () => import('@/views/layout/ConsoleLayout.vue'),
+    path: '/agents/editor/:id?',
+    name: 'AgentEditor',
+    component: () => import('@/views/agents/editor.vue'),
+    meta: { title: '智能体编辑器', requiresAuth: true }
+  },
+  {
+    path: '/',
+    component: () => import('@/layouts/MainLayout.vue'),
     meta: { requiresAuth: true },
     children: [
       {
-        path: '',
-        redirect: '/console/agents'
-      },
-      {
         path: 'agents',
         name: 'Agents',
-        component: () => import('@/views/console/AgentConsole.vue'),
-        meta: { title: '智能体编辑器', requiresAuth: true }
-      },
-      {
-        path: 'workflows',
-        name: 'Workflows',
-        component: () => import('@/views/console/WorkflowDesigner.vue'),
-        meta: { title: '工作流设计器', requiresAuth: true }
-      },
-      {
-        path: 'knowledge',
-        name: 'Knowledge',
-        component: () => import('@/views/console/KnowledgeConsole.vue'),
-        meta: { title: '知识库管理', requiresAuth: true }
+        component: () => import('@/views/agents/index.vue'),
+        meta: { title: '智能体', requiresAuth: true }
       },
       {
         path: 'plugins',
         name: 'Plugins',
-        component: () => import('@/views/console/PluginConsole.vue'),
-        meta: { title: '插件配置', requiresAuth: true }
+        component: () => import('@/views/plugins/index.vue'),
+        meta: { title: '插件', requiresAuth: true }
+      },
+      {
+        path: 'plugins/:id',
+        name: 'PluginDetail',
+        component: () => import('@/views/plugins/[id].vue'),
+        meta: { title: '插件详情', requiresAuth: true }
       }
     ]
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/console/agents'
+    redirect: '/agents'
   }
 ]
 
@@ -75,7 +71,7 @@ router.beforeEach((to, _from, next) => {
   }
 
   if ((to.path === '/login' || to.path === '/register') && token) {
-    next('/console/agents')
+    next('/agents')
     return
   }
 
@@ -83,4 +79,3 @@ router.beforeEach((to, _from, next) => {
 })
 
 export default router
-

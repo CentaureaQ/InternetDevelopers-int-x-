@@ -1,13 +1,36 @@
 <template>
-  <div class="login-page">
-    <div class="login-container">
-      <div class="login-header">
-        <h1>智能体创作平台</h1>
-        <p>搭建您的专属AI智能体</p>
-      </div>
+  <div class="auth-page">
+    <div class="auth-decor">
+      <span class="bubble bubble-1" />
+      <span class="bubble bubble-2" />
+      <span class="bubble bubble-3" />
+    </div>
 
-      <el-card class="login-card">
-        <el-form :model="formData" :rules="rules" ref="formRef" @submit.prevent="onSubmit">
+    <div class="auth-wrapper">
+      <section class="intro-panel">
+        <span class="intro-badge">AI 生产力工具集</span>
+        <h1>智能体创作平台</h1>
+        <p>一站式构建、调试和分发，助力业务快速落地</p>
+        <ul>
+          <li>拖拽式流程编排</li>
+          <li>插件级能力扩展</li>
+          <li>实时监控与调优</li>
+        </ul>
+      </section>
+
+      <div class="form-panel">
+        <header>
+          <h2>欢迎回来</h2>
+          <p>登录以继续创作智能体</p>
+        </header>
+        <el-form
+          class="auth-form"
+          label-position="top"
+          :model="formData"
+          :rules="rules"
+          ref="formRef"
+          @submit.prevent="onSubmit"
+        >
           <el-form-item label="用户名" prop="username">
             <el-input v-model="formData.username" placeholder="请输入用户名" size="large" />
           </el-form-item>
@@ -21,15 +44,16 @@
             />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" size="large" style="width: 100%" :loading="loading" @click="onSubmit">
+            <el-button type="primary" size="large" class="submit-btn" :loading="loading" @click="onSubmit">
               登录
             </el-button>
           </el-form-item>
-          <el-form-item>
-            <el-button size="large" style="width: 100%" @click="goToRegister">注册账号</el-button>
-          </el-form-item>
+          <p class="switch-tip">
+            还没有账号？
+            <el-button link type="primary" @click="goToRegister">立即注册</el-button>
+          </p>
         </el-form>
-      </el-card>
+      </div>
     </div>
   </div>
 </template>
@@ -81,7 +105,6 @@ async function onSubmit() {
       }, 500)
     } catch (error: any) {
       console.error('登录失败:', error)
-      ElMessage.error(error.message || '登录失败，请重试')
     } finally {
       loading.value = false
     }
@@ -94,40 +117,172 @@ function goToRegister() {
 </script>
 
 <style scoped>
-.login-page {
+.auth-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: radial-gradient(circle at 10% 20%, #fef9f7 0%, #f3f6ff 45%, #e7ecff 100%);
+  padding: 40px 24px;
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
 }
 
-.login-container {
+.auth-decor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.35;
+  filter: blur(0.5px);
+  background: linear-gradient(135deg, #b3c7ff, #dfd1ff);
+}
+
+.bubble-1 {
+  width: 260px;
+  height: 260px;
+  top: -60px;
+  right: -40px;
+}
+
+.bubble-2 {
+  width: 180px;
+  height: 180px;
+  bottom: 10%;
+  left: -60px;
+}
+
+.bubble-3 {
+  width: 140px;
+  height: 140px;
+  bottom: 0;
+  right: 10%;
+}
+
+.auth-wrapper {
+  position: relative;
+  z-index: 1;
+  max-width: 1080px;
   width: 100%;
-  max-width: 420px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 36px;
+  align-items: center;
 }
 
-.login-header {
-  text-align: center;
-  color: white;
-  margin-bottom: 32px;
+.intro-panel {
+  color: #1f2a44;
 }
 
-.login-header h1 {
-  font-size: 32px;
-  font-weight: bold;
-  margin-bottom: 12px;
+.intro-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4153ef;
+  background: rgba(65, 83, 239, 0.1);
+  border-radius: 999px;
+  padding: 6px 14px;
 }
 
-.login-header p {
+.intro-panel h1 {
+  font-size: 40px;
+  margin: 20px 0 12px;
+  font-weight: 700;
+}
+
+.intro-panel p {
   font-size: 16px;
-  opacity: 0.9;
+  color: #516178;
+  margin-bottom: 24px;
 }
 
-.login-card {
-  border-radius: 16px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+.intro-panel ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.intro-panel li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  color: #2f3b52;
+}
+
+.intro-panel li::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #5f6bff;
+  box-shadow: 0 0 0 5px rgba(95, 107, 255, 0.12);
+}
+
+.form-panel {
+  backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 28px;
+  padding: 40px 36px;
+  box-shadow: 0 25px 70px rgba(38, 66, 180, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.form-panel header h2 {
+  margin: 0;
+  font-size: 28px;
+  color: #111a34;
+}
+
+.form-panel header p {
+  margin: 6px 0 26px;
+  color: #697a98;
+  font-size: 14px;
+}
+
+.auth-form :deep(.el-form-item__label) {
+  color: #5a6175;
+  font-weight: 500;
+}
+
+.submit-btn {
+  width: 100%;
+  border-radius: 12px;
+  box-shadow: 0 12px 20px rgba(65, 83, 239, 0.35);
+}
+
+.switch-tip {
+  text-align: center;
+  margin: 4px 0 0;
+  color: #7c859e;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .auth-page {
+    padding: 32px 16px;
+  }
+
+  .form-panel {
+    padding: 32px 24px;
+  }
+
+  .intro-panel {
+    text-align: center;
+  }
+
+  .intro-panel ul {
+    justify-items: center;
+  }
 }
 </style>
 

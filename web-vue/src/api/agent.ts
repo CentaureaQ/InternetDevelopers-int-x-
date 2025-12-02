@@ -13,9 +13,8 @@ export interface AgentCreateRequest {
   systemPrompt: string
   userPromptTemplate?: string
   modelConfig: ModelConfig
-  workflowId?: number
-  knowledgeBaseIds?: number[]
   pluginIds?: number[]
+  ownerUserId?: number
 }
 
 export interface AgentUpdateRequest {
@@ -24,8 +23,6 @@ export interface AgentUpdateRequest {
   systemPrompt?: string
   userPromptTemplate?: string
   modelConfig?: ModelConfig
-  workflowId?: number
-  knowledgeBaseIds?: number[]
   pluginIds?: number[]
 }
 
@@ -43,9 +40,8 @@ export interface AgentVO {
   systemPrompt?: string
   userPromptTemplate?: string
   modelConfig?: ModelConfig
-  workflowId?: number
-  knowledgeBaseIds?: number[]
   pluginIds?: number[]
+  ownerUserId?: number
   status: string
   createdAt: string
   updatedAt: string
@@ -87,6 +83,10 @@ export const fetchAgents = (query?: AgentListQuery): Promise<PageResponse<AgentV
 
 export const publishAgent = (id: number): Promise<void> => {
   return http.post(`/api/agents/${id}/publish`)
+}
+
+export const unpublishAgent = (id: number): Promise<void> => {
+  return http.post(`/api/agents/${id}/unpublish`)
 }
 
 export const testAgent = (id: number, data: AgentTestRequest): Promise<AgentTestResponse> => {

@@ -1,0 +1,71 @@
+/* 主样式入口文件 */
+
+/* 设计变量 */
+@import './variables.css';
+
+/* 基础样式 */
+@import './base.css';
+
+/* 工具类 */
+@import './utilities.css';
+
+/* 组件样式 */
+@import './components.css';
+
+/* Element Plus 自定义主题 */
+:root {
+  --el-color-primary: var(--color-primary);
+  --el-color-success: var(--color-success);
+  --el-color-warning: var(--color-warning);
+  --el-color-danger: var(--color-error);
+  --el-color-info: var(--color-info);
+  
+  --el-border-radius-base: var(--radius-md);
+  --el-border-radius-small: var(--radius-sm);
+  
+  --el-font-size-base: var(--font-size-base);
+  --el-font-size-small: var(--font-size-sm);
+  --el-font-size-large: var(--font-size-lg);
+}
+
+/* Element Plus 组件自定义 */
+.el-button {
+  font-weight: var(--font-weight-medium);
+  transition: all var(--transition-base) ease;
+}
+
+.el-card {
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+}
+
+.el-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.el-input__inner {
+  transition: all var(--transition-base) ease;
+}
+
+.el-menu {
+  border-right: none;
+}
+
+.el-menu-item:hover {
+  background-color: rgba(99, 102, 241, 0.1) !important;
+}
+
+.el-menu-item.is-active {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .page-container {
+    padding: var(--spacing-md);
+  }
+
+  .page-title {
+    font-size: var(--font-size-2xl);
+  }
+}

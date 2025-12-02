@@ -377,7 +377,6 @@ CREATE TABLE IF NOT EXISTS `document` (
 | `status` | VARCHAR(20) | DEFAULT 'disabled' | 状态：`enabled`（启用）/`disabled`（禁用） | US-010, US-011 |
 | `created_at` | DATETIME | DEFAULT CURRENT_TIMESTAMP | 创建时间 | 所有 |
 | `updated_at` | DATETIME | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 | 所有 |
-| `is_deleted` | TINYINT(1) | DEFAULT 0 | 是否删除：0-未删除，1-已删除 | 所有 |
 
 **JSON字段结构示例**:
 ```json
@@ -419,14 +418,13 @@ CREATE TABLE IF NOT EXISTS `document` (
 - `config`: 存储敏感配置信息（如API密钥），建议加密存储
 - `status`: 默认禁用，用户需手动启用
 - `updated_at`: 自动追踪最后修改时间，便于审计
-- `is_deleted`: 支持软删除，防止误删导致关联数据错误
+- 依赖 `agent_plugin_rel`、`user_plugin_rel` 的外键 `ON DELETE CASCADE`，物理删除插件会自动清理关联表，避免脏数据。
 
 **索引**:
 - PRIMARY KEY (`id`)
 - UNIQUE KEY `uk_name` (`name`) - 防止插件名称重复
 - INDEX `idx_status` (`status`) - 用于查询已启用的插件
 - INDEX `idx_type` (`type`) - 用于查询内置/自定义插件
-- INDEX `idx_deleted` (`is_deleted`) - 用于过滤已删除的记录
 
 **建表语句**:
 ```sql
@@ -441,11 +439,9 @@ CREATE TABLE IF NOT EXISTS `plugin` (
     `status` VARCHAR(20) DEFAULT 'disabled' COMMENT '插件状态: enabled(启用)/disabled(禁用)',
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `is_deleted` TINYINT(1) DEFAULT 0 COMMENT '是否删除: 0-未删除, 1-已删除',
     UNIQUE KEY `uk_name` (`name`),
     INDEX `idx_type` (`type`),
-    INDEX `idx_status` (`status`),
-    INDEX `idx_deleted` (`is_deleted`)
+  INDEX `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='插件表';
 ```
 
