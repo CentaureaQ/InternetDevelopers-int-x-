@@ -10,6 +10,7 @@
         <result column="system_prompt" property="systemPrompt"/>
         <result column="user_prompt_template" property="userPromptTemplate"/>
         <result column="model_config" property="modelConfig"/>
+        <result column="rag_config" property="ragConfig"/>
         <result column="status" property="status"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
@@ -17,10 +18,10 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO agent
-        (name, description, system_prompt, user_prompt_template, model_config,
+        (name, description, system_prompt, user_prompt_template, model_config, rag_config,
          status)
         VALUES
-        (#{name}, #{description}, #{systemPrompt}, #{userPromptTemplate}, #{modelConfig},
+        (#{name}, #{description}, #{systemPrompt}, #{userPromptTemplate}, #{modelConfig}, #{ragConfig},
          #{status})
     </insert>
 
@@ -32,6 +33,7 @@
             <if test="systemPrompt != null">system_prompt = #{systemPrompt},</if>
             <if test="userPromptTemplate != null">user_prompt_template = #{userPromptTemplate},</if>
             <if test="modelConfig != null">model_config = #{modelConfig},</if>
+            <if test="ragConfig != null">rag_config = #{ragConfig},</if>
             <if test="status != null">status = #{status},</if>
         </set>
         WHERE id = #{id}

@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS `agent` (
     `system_prompt` TEXT COMMENT '系统提示词',
     `user_prompt_template` TEXT COMMENT '用户提示词模板',
     `model_config` JSON COMMENT '模型配置: {"provider": "deepseek", "model": "deepseek-chat", "temperature": 0.7}',
+    `rag_config` JSON COMMENT 'RAG配置: {"topK": 3, "threshold": 0.6, "maxContextLength": 2000}',
     `status` VARCHAR(20) DEFAULT 'draft' COMMENT '状态: draft(草稿)/published(已发布)',
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -101,34 +102,34 @@ CREATE TABLE IF NOT EXISTS `agent` (
 -- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='工作流表';
 
 -- ============================================
--- 3. 知识库表 (knowledge_base) —— 暂未启用，可按需恢复
+-- 3. 知识库表 (knowledge_base)
 -- ============================================
--- CREATE TABLE IF NOT EXISTS `knowledge_base` (
---     `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
---     `name` VARCHAR(100) NOT NULL COMMENT '知识库名称',
---     `description` VARCHAR(500) COMMENT '描述',
---     `vector_db_type` VARCHAR(50) DEFAULT 'milvus' COMMENT '向量库类型: milvus/chroma',
---     `chunk_size` INT DEFAULT 512 COMMENT '分块大小(字符数)',
---     `chunk_overlap` INT DEFAULT 50 COMMENT '分块重叠(字符数)',
---     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
---     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
--- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='知识库表';
+CREATE TABLE IF NOT EXISTS `knowledge_base` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    `name` VARCHAR(100) NOT NULL COMMENT '知识库名称',
+    `description` VARCHAR(500) COMMENT '描述',
+    `vector_db_type` VARCHAR(50) DEFAULT 'milvus' COMMENT '向量库类型: milvus/chroma',
+    `chunk_size` INT DEFAULT 512 COMMENT '分块大小(字符数)',
+    `chunk_overlap` INT DEFAULT 50 COMMENT '分块重叠(字符数)',
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='知识库表';
 
 -- ============================================
--- 4. 文档表 (document) —— 暂未启用，可按需恢复
+-- 4. 文档表 (document)
 -- ============================================
--- CREATE TABLE IF NOT EXISTS `document` (
---     `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
---     `knowledge_base_id` BIGINT NOT NULL COMMENT '所属知识库ID',
---     `filename` VARCHAR(255) NOT NULL COMMENT '文件名',
---     `content` LONGTEXT COMMENT '文件原始内容(TXT/Markdown)',
---     `chunks` JSON COMMENT '分块后的文本列表: ["chunk1", "chunk2"]',
---     `vector_ids` JSON COMMENT '向量数据库返回的Vector ID列表: ["vec_1", "vec_2"]',
---     `status` VARCHAR(20) DEFAULT 'pending' COMMENT '状态: pending(待处理)/processing(处理中)/success(成功)/failed(失败)',
---     `uploaded_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '上传时间',
---     INDEX `idx_kb_id` (`knowledge_base_id`),
---     INDEX `idx_status` (`status`)
--- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文档表';
+CREATE TABLE IF NOT EXISTS `document` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    `knowledge_base_id` BIGINT NOT NULL COMMENT '所属知识库ID',
+    `filename` VARCHAR(255) NOT NULL COMMENT '文件名',
+    `content` LONGTEXT COMMENT '文件原始内容(TXT/Markdown)',
+    `chunks` JSON COMMENT '分块后的文本列表: ["chunk1", "chunk2"]',
+    `vector_ids` JSON COMMENT '向量数据库返回的Vector ID列表: ["vec_1", "vec_2"]',
+    `status` VARCHAR(20) DEFAULT 'pending' COMMENT '状态: pending(待处理)/processing(处理中)/success(成功)/failed(失败)',
+    `uploaded_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '上传时间',
+    INDEX `idx_kb_id` (`knowledge_base_id`),
+    INDEX `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文档表';
 
 -- ============================================
 -- 5. 插件表 (plugin)
@@ -201,6 +202,22 @@ CREATE TABLE IF NOT EXISTS `user_plugin_rel` (
   CONSTRAINT `fk_user_plugin_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_user_plugin_plugin` FOREIGN KEY (`plugin_id`) REFERENCES `plugin` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户-插件关联表';
+
+-- ============================================
+-- 9. 文档分块表 (knowledge_chunk)
+-- 存储文档切分后的文本块
+-- ============================================
+CREATE TABLE IF NOT EXISTS `knowledge_chunk` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    `document_id` BIGINT NOT NULL COMMENT '所属文档ID',
+    `kb_id` BIGINT NOT NULL COMMENT '所属知识库ID',
+    `chunk_index` INT NOT NULL COMMENT '分块索引',
+    `content` LONGTEXT COMMENT '分块内容',
+    `token_count` INT COMMENT 'Token数量',
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX `idx_doc_id` (`document_id`),
+    INDEX `idx_kb_id` (`kb_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文档分块表';
 
 -- ============================================
 -- 显示创建的表

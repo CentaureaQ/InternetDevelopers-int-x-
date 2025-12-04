@@ -73,3 +73,16 @@ jwt:
 #   beta: 0.3
 
 # AI 功能及文档页面在精简版本中已移除
+
+agent:
+  vector-store:
+    milvus:
+      host: ${MILVUS_HOST:localhost}
+      port: ${MILVUS_PORT:19530}
+      token: ${MILVUS_TOKEN:}
+  embedding:
+    tongyi:
+      api-key: ${TONGYI_API_KEY:}
+      model: text-embedding-v1
+      dimension: 1536
+      batch-size: 10

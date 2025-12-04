@@ -15,6 +15,7 @@ public class Agent {
     private String systemPrompt;
     private String userPromptTemplate;
     private String modelConfig;
+    private String ragConfig; // JSON: {"topK": 3, "threshold": 0.6, "maxContextLength": 2000}
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

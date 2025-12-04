@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.sspku.agent.module.knowledge.mapper.KnowledgeDocumentMapper">
+    <resultMap id="BaseResultMap" type="com.sspku.agent.module.knowledge.entity.KnowledgeDocument">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="uuid" property="uuid" jdbcType="VARCHAR"/>
+        <result column="name" property="name" jdbcType="VARCHAR"/>
+        <result column="file_path" property="filePath" jdbcType="VARCHAR"/>
+        <result column="file_size" property="fileSize" jdbcType="BIGINT"/>
+        <result column="file_type" property="fileType" jdbcType="VARCHAR"/>
+        <result column="knowledge_base_id" property="knowledgeBaseId" jdbcType="BIGINT"/>
+        <result column="status" property="status" jdbcType="VARCHAR"/>
+        <result column="chunk_count" property="chunkCount" jdbcType="INTEGER"/>
+        <result column="error_message" property="errorMessage" jdbcType="VARCHAR"/>
+        <result column="processed_at" property="processedAt" jdbcType="TIMESTAMP"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+        <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, uuid, name, file_path, file_size, file_type, knowledge_base_id, status, chunk_count, error_message, processed_at, created_at, updated_at
+    </sql>
+
+    <insert id="insert" parameterType="com.sspku.agent.module.knowledge.entity.KnowledgeDocument" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO document (uuid, name, file_path, file_size, file_type, knowledge_base_id, status, created_at, updated_at)
+        VALUES (#{uuid}, #{name}, #{filePath}, #{fileSize}, #{fileType}, #{knowledgeBaseId}, #{status}, NOW(), NOW())
+    </insert>
+
+    <update id="update" parameterType="com.sspku.agent.module.knowledge.entity.KnowledgeDocument">
+        UPDATE document
+        <set>
+            <if test="status != null">status = #{status},</if>
+            <if test="chunkCount != null">chunk_count = #{chunkCount},</if>
+            <if test="errorMessage != null">error_message = #{errorMessage},</if>
+            <if test="processedAt != null">processed_at = #{processedAt},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteByUuid">
+        DELETE FROM document WHERE uuid = #{uuid}
+    </delete>
+
+    <select id="selectByUuid" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM document
+        WHERE uuid = #{uuid}
+    </select>
+
+    <select id="selectByKnowledgeBaseId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM document
+        WHERE knowledge_base_id = #{kbId}
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="selectByKnowledgeBaseUuid" resultMap="BaseResultMap">
+        SELECT d.*
+        FROM document d
+        JOIN knowledge_base kb ON d.knowledge_base_id = kb.id
+        WHERE kb.uuid = #{kbUuid}
+        <if test="status != null and status != ''">
+            AND d.status = #{status}
+        </if>
+        ORDER BY d.created_at DESC
+    </select>
+</mapper>
