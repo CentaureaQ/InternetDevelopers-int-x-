@@ -8,6 +8,13 @@ export interface ModelConfig {
   topP?: number
 }
 
+export interface RagConfig {
+  topK?: number
+  threshold?: number
+  maxContextLength?: number
+  similarityMetric?: string
+}
+
 export interface AgentCreateRequest {
   name: string
   description?: string
@@ -16,6 +23,8 @@ export interface AgentCreateRequest {
   modelConfig: ModelConfig
   pluginIds?: number[]
   ownerUserId?: number
+  knowledgeBaseId?: number
+  ragConfig?: RagConfig
 }
 
 export interface AgentUpdateRequest {
@@ -25,6 +34,8 @@ export interface AgentUpdateRequest {
   userPromptTemplate?: string
   modelConfig?: ModelConfig
   pluginIds?: number[]
+  knowledgeBaseId?: number
+  ragConfig?: RagConfig
 }
 
 export interface AgentListQuery {
@@ -46,6 +57,8 @@ export interface AgentVO {
   status: string
   createdAt: string
   updatedAt: string
+  knowledgeBaseId?: number
+  ragConfig?: RagConfig
 }
 
 export interface PageResponse<T> {

@@ -71,7 +71,8 @@ import {
   User,
   ArrowDown,
   Promotion,
-  SwitchButton
+  SwitchButton,
+  DocumentCopy
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -80,6 +81,7 @@ const userStore = useUserStore()
 
 const menuItems = [
   { path: '/agents', label: '智能体管理', icon: Edit },
+  { path: '/knowledge', label: '知识库管理', icon: DocumentCopy },
   { path: '/plugins', label: '插件管理', icon: Setting }
 ]
 
