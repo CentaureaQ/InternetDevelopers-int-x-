@@ -145,7 +145,6 @@ import { useUserStore } from '@/stores/user'
 import {
   getKnowledgeBase,
   fetchKnowledgeDocuments,
-  uploadKnowledgeDocument,
   deleteDocument,
   type KnowledgeBaseVO,
   type DocumentVO
@@ -228,7 +227,7 @@ const handleDeleteDocument = (doc: DocumentVO) => {
     })
 }
 
-const handleUploadSuccess = (response: any) => {
+const handleUploadSuccess = () => {
   ElMessage.success('文档上传成功，正在处理...')
   fileList.value = []
   showUploadDialog.value = false

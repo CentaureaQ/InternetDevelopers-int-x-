@@ -9,6 +9,13 @@ spring:
   application:
     name: sspku-agent-api
 
+  ai:
+    dashscope:
+      chat:
+        options:
+          connect-timeout: 60000
+          read-timeout: 60000
+
   datasource:
     url: jdbc:mysql://10.129.83.19:3306/ai_platform?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8&allowPublicKeyRetrieval=true
     username: ${DB_USERNAME:demo_user}
@@ -61,3 +68,16 @@ jwt:
 #   beta: 0.3
 
 # AI 功能及文档页面在精简版本中已移除
+
+agent:
+  vector-store:
+    milvus:
+      host: ${MILVUS_HOST:localhost}
+      port: ${MILVUS_PORT:19530}
+      token: ${MILVUS_TOKEN:}
+  embedding:
+    tongyi:
+      api-key: ${TONGYI_API_KEY:}
+      model: text-embedding-v4
+      dimension: 1024
+      batch-size: 10

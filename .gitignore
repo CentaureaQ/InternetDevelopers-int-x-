@@ -66,3 +66,6 @@ scripts/__pycache__/
 # ===== 数据库数据文件 =====
 database/redis/data/
 database/mysql/data/
+
+# Docker volumes
+deploy/volumes/

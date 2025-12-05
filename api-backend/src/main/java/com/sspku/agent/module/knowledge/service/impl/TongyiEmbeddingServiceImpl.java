@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 public class TongyiEmbeddingServiceImpl implements EmbeddingService {
 
     private final EmbeddingConfig embeddingConfig;
-    private static final String API_URL = "https://dashscope.aliyuncs.com/api/v1/services/embeddings/text-embedding/text-embedding";
+    private static final String API_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings";
 
     @Override
     public List<List<Float>> embedDocuments(List<String> texts) {
@@ -84,17 +84,11 @@ public class TongyiEmbeddingServiceImpl implements EmbeddingService {
     }
 
     private List<List<Float>> callApi(List<String> texts, String textType) {
-        // Real API call (DashScope)
-        JSONObject input = new JSONObject();
-        input.set("texts", texts);
-
+        // OpenAI Compatible API call (DashScope)
         JSONObject body = new JSONObject();
         body.set("model", embeddingConfig.getModel());
-        body.set("input", input);
-        
-        JSONObject parameters = new JSONObject();
-        parameters.set("text_type", textType);
-        body.set("parameters", parameters);
+        body.set("input", texts);
+        body.set("encoding_format", "float");
 
         try (HttpResponse response = HttpRequest.post(API_URL)
                 .header("Authorization", "Bearer " + embeddingConfig.getApiKey())
@@ -108,15 +102,15 @@ public class TongyiEmbeddingServiceImpl implements EmbeddingService {
             }
 
             JSONObject json = JSONUtil.parseObj(response.body());
-            if (json.containsKey("output") && json.getJSONObject("output").containsKey("embeddings")) {
-                JSONArray embeddings = json.getJSONObject("output").getJSONArray("embeddings");
+            if (json.containsKey("data")) {
+                JSONArray data = json.getJSONArray("data");
                 
-                // Sort by text_index to ensure order
+                // Sort by index to ensure order
                 List<JSONObject> embeddingObjects = new ArrayList<>();
-                for (int i = 0; i < embeddings.size(); i++) {
-                    embeddingObjects.add(embeddings.getJSONObject(i));
+                for (int i = 0; i < data.size(); i++) {
+                    embeddingObjects.add(data.getJSONObject(i));
                 }
-                embeddingObjects.sort(Comparator.comparingInt(o -> o.getInt("text_index")));
+                embeddingObjects.sort(Comparator.comparingInt(o -> o.getInt("index")));
 
                 List<List<Float>> result = new ArrayList<>();
                 for (JSONObject item : embeddingObjects) {

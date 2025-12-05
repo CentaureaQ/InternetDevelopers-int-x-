@@ -128,12 +128,14 @@ public class MilvusVectorStorageServiceImpl implements VectorStorageService {
     @Override
     public List<SearchResult> search(Long kbId, List<Float> queryVector, int topK, double threshold) {
         String collectionName = getCollectionName(kbId);
+        log.info("Searching Milvus collection: {}, topK: {}, threshold: {}", collectionName, topK, threshold);
         
         // Check if collection exists
         R<Boolean> hasCollection = milvusClient.hasCollection(HasCollectionParam.newBuilder()
                 .withCollectionName(collectionName)
                 .build());
         if (hasCollection.getData() == null || !hasCollection.getData()) {
+            log.warn("Collection {} does not exist", collectionName);
             return Collections.emptyList();
         }
 
@@ -168,18 +170,18 @@ public class MilvusVectorStorageServiceImpl implements VectorStorageService {
         SearchResultsWrapper wrapper = new SearchResultsWrapper(response.getData().getResults());
         List<SearchResultsWrapper.IDScore> scores = wrapper.getIDScore(0);
         
+        log.info("Milvus returned {} raw results", scores.size());
+
         List<SearchResult> results = new ArrayList<>();
         for (SearchResultsWrapper.IDScore score : scores) {
+            log.info("Result: id={}, score={}", score.getLongID(), score.getScore());
             if (score.getScore() < threshold) {
                 continue;
             }
             SearchResult result = new SearchResult();
             result.setChunkId(score.getLongID());
             result.setScore(score.getScore());
-            // In Milvus SDK 2.3.x, getting output fields from IDScore might be different or require getField(String)
-            // If getField is not available, we might need to rely on the order or check SDK docs.
-            // For now, let's assume we can get it from the wrapper or the score object if available.
-            // Actually, IDScore.get(String key) returns Object.
+            
             Object docIdObj = score.get("doc_id");
             if (docIdObj != null) {
                  result.setDocId(Long.parseLong(docIdObj.toString()));

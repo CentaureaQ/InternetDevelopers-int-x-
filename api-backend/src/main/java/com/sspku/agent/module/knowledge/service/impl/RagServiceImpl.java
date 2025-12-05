@@ -54,112 +54,75 @@ public class RagServiceImpl implements RagService {
 
     @Override
     public List<KnowledgeChunk> retrieve(Long agentId, String query) {
+        log.info("RAG Retrieve started for agent {} with query: {}", agentId, query);
         // 1. Get Config
         RagConfig config = getRagConfig(agentId);
+        log.info("RAG Config: {}", JSONUtil.toJsonStr(config));
         
         // 2. Get Knowledge Bases for Agent
-        // Note: We need a way to get KBs associated with an agent.
-        // Assuming there's a relation table or logic. For now, let's assume we fetch all KBs for the user who owns the agent?
-        // Or better, check `user_agent_rel` -> `user` -> `knowledge_base`?
-        // Actually, the schema has `user_agent_rel` but no direct `agent_kb_rel`.
-        // Usually agents are associated with KBs. Let's assume we need to implement `selectByAgentId` in KnowledgeBaseMapper
-        // or use a placeholder if the relation isn't defined yet.
-        // Looking at schema, there is no direct link. Let's assume for now we search ALL KBs (not safe) or just mock it.
-        // Wait, the user requirement says: "Get agent associated KBs".
-        // I should probably add a relation table `agent_kb_rel` or similar if it doesn't exist.
-        // But I cannot modify schema too much without permission.
-        // Let's check if `KnowledgeBaseMapper` has something relevant.
-        // If not, I'll assume for this task that we search in a specific KB or all KBs.
-        // Let's assume we search all KBs for now as a fallback, or better, let's assume the agent has a list of KB IDs in its config or a relation.
-        // Let's check `KnowledgeBaseMapper` first.
-        
         List<KnowledgeBase> kbs = knowledgeBaseMapper.selectAll(); // Placeholder: Should be filtered by Agent
         if (CollUtil.isEmpty(kbs)) {
+            log.warn("No Knowledge Bases found");
             return Collections.emptyList();
         }
+        log.info("Found {} Knowledge Bases", kbs.size());
 
         // 3. Embed Query
         List<Float> queryVector = embeddingService.embedQuery(query);
+        log.info("Query embedded, vector size: {}", queryVector.size());
 
         // 4. Search in Vector DB
         List<SearchResult> allResults = new ArrayList<>();
         for (KnowledgeBase kb : kbs) {
             try {
+                log.info("Searching in KB: {}", kb.getId());
                 List<SearchResult> results = vectorStorageService.search(
                         kb.getId(), 
                         queryVector, 
                         config.getTopK(), 
                         config.getThreshold()
                 );
+                log.info("KB {} returned {} results", kb.getId(), results.size());
                 allResults.addAll(results);
             } catch (Exception e) {
                 log.warn("Failed to search KB {}", kb.getId(), e);
             }
         }
 
-                // 5. Sort and Limit
+        // 5. Sort and Limit
         allResults.sort(Comparator.comparingDouble(SearchResult::getScore).reversed());
+        log.info("Total results found: {}", allResults.size());
+        
         if (allResults.size() > config.getTopK()) {
             allResults = allResults.subList(0, config.getTopK());
         }
 
         // 6. Fetch Content from DB
         if (CollUtil.isEmpty(allResults)) {
+            log.info("No results after filtering");
             return Collections.emptyList();
         }
 
         List<Long> chunkIds = allResults.stream()
-                .map(SearchResult::getId)
+                .map(SearchResult::getChunkId)
                 .collect(Collectors.toList());
         
         List<KnowledgeChunk> chunks = chunkMapper.selectByIds(chunkIds);
+        log.info("Retrieved {} chunks from DB", chunks.size());
         
-        // Map chunks to results to preserve order and score (optional, but good for debugging)
-        // We return List<KnowledgeChunk>, so we just return the found chunks.
-        // Ideally, we should attach the score to the chunk or return a DTO.
-        // For now, let's just return the chunks in the order of scores.
-        
+        // Map chunks to results to preserve order and score
         Map<Long, KnowledgeChunk> chunkMap = chunks.stream()
                 .collect(Collectors.toMap(KnowledgeChunk::getId, c -> c));
         
         List<KnowledgeChunk> sortedChunks = new ArrayList<>();
         for (SearchResult result : allResults) {
-            KnowledgeChunk chunk = chunkMap.get(result.getId());
+            KnowledgeChunk chunk = chunkMap.get(result.getChunkId());
             if (chunk != null) {
-                // We could set a transient score field if KnowledgeChunk had one
                 sortedChunks.add(chunk);
             }
         }
         
         return sortedChunks;
-    }
-
-    @Override
-    public String buildPrompt(List<KnowledgeChunk> chunks, String query) {
-
-        allResults.sort((a, b) -> Float.compare(b.getScore(), a.getScore())); // Descending
-        if (allResults.size() > config.getTopK()) {
-            allResults = allResults.subList(0, config.getTopK());
-        }
-
-        if (allResults.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        // 6. Fetch Content
-        List<Long> chunkIds = allResults.stream().map(SearchResult::getChunkId).collect(Collectors.toList());
-        List<KnowledgeChunk> chunks = chunkMapper.selectByIds(chunkIds);
-        
-        // Reorder to match score order
-        Map<Long, KnowledgeChunk> chunkMap = chunks.stream().collect(Collectors.toMap(KnowledgeChunk::getId, c -> c));
-        List<KnowledgeChunk> orderedChunks = new ArrayList<>();
-        for (SearchResult result : allResults) {
-            if (chunkMap.containsKey(result.getChunkId())) {
-                orderedChunks.add(chunkMap.get(result.getChunkId()));
-            }
-        }
-        
-        return orderedChunks;
     }
 
     @Override

@@ -2,6 +2,8 @@ package com.sspku.agent.module.knowledge.service.impl;
 
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.IdUtil;
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.core.collection.CollUtil;
 import com.sspku.agent.module.knowledge.component.chunker.Chunker;
 import com.sspku.agent.module.knowledge.component.chunker.ChunkerFactory;
 import com.sspku.agent.module.knowledge.component.chunker.ChunkingConfig;
@@ -121,13 +123,23 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
 
     public void processDocumentAsync(KnowledgeDocument doc, KnowledgeBase kb) {
         try {
+            log.info("Starting async processing for document: {} (UUID: {})", doc.getName(), doc.getUuid());
+            
             // Update status to processing
             doc.setStatus("processing");
             documentMapper.update(doc);
 
             // Read file content
             File file = new File(doc.getFilePath());
+            if (!file.exists()) {
+                throw new RuntimeException("File not found at path: " + doc.getFilePath());
+            }
+            
             String content = FileUtil.readUtf8String(file);
+            if (StrUtil.isBlank(content)) {
+                throw new RuntimeException("File content is empty");
+            }
+            log.info("File content read successfully. Size: {} chars", content.length());
 
             // Determine config
             ChunkingConfig config = new ChunkingConfig();
@@ -145,10 +157,17 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
                 strategy = "markdown_aware";
             }
             config.setChunkStrategy(strategy);
+            log.info("Using chunking strategy: {}", strategy);
 
             // Chunk
             Chunker chunker = chunkerFactory.getChunker(strategy);
             List<String> chunks = chunker.chunk(content, config);
+            
+            if (CollUtil.isEmpty(chunks)) {
+                log.warn("No chunks generated for document: {}", doc.getName());
+                // Even if no chunks, we might want to mark as processed but with 0 chunks? 
+                // Or fail? Let's proceed but log warning.
+            }
 
             // Update doc info
             doc.setChunkCount(chunks.size());
@@ -170,10 +189,13 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
                 chunkMapper.batchInsert(chunkEntities);
                 // Update KB stats (chunk count)
                 knowledgeBaseMapper.updateStats(doc.getKnowledgeBaseId(), 0, chunks.size(), 0);
+                log.info("Saved {} chunks to database", chunkEntities.size());
             }
 
             // Vectorize
+            log.info("Starting vectorization for {} chunks", chunks.size());
             List<List<Float>> embeddings = embeddingService.embedDocuments(chunks);
+            log.info("Vectorization completed. Generated {} embeddings", embeddings.size());
             
             // Store in Milvus
             if (!embeddings.isEmpty()) {
@@ -188,6 +210,7 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
                 }
                 
                 vectorStorageService.insertVectors(doc.getKnowledgeBaseId(), chunkIds, embeddings, docIds);
+                log.info("Vectors stored in Milvus for KB ID: {}", doc.getKnowledgeBaseId());
             }
 
             // Update status to processed
@@ -204,11 +227,15 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
             log.info("Knowledge Base {} updated: documentCount={}, chunkCount={}", 
                 kb.getId(), kb.getDocumentCount(), kb.getChunkCount());
             
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.error("Failed to process document: {}", doc.getUuid(), e);
             doc.setStatus("failed");
-            doc.setErrorMessage(e.getMessage());
-            documentMapper.update(doc);
+            doc.setErrorMessage(e.getMessage() != null ? e.getMessage() : e.toString());
+            try {
+                documentMapper.update(doc);
+            } catch (Exception updateEx) {
+                log.error("Failed to update document status to failed", updateEx);
+            }
         }
     }
 

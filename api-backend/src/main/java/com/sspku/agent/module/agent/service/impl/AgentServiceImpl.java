@@ -20,6 +20,8 @@ import com.sspku.agent.module.agent.model.ModelConfig;
 import com.sspku.agent.module.agent.service.AgentService;
 import com.sspku.agent.module.agent.vo.AgentTestResponse;
 import com.sspku.agent.module.agent.vo.AgentVO;
+import com.sspku.agent.module.knowledge.entity.KnowledgeChunk;
+import com.sspku.agent.module.knowledge.service.RagService;
 import com.sspku.agent.module.user.entity.User;
 import com.sspku.agent.module.agent.tool.PluginToolFactory;
 import lombok.RequiredArgsConstructor;
@@ -54,6 +56,7 @@ public class AgentServiceImpl implements AgentService {
     private final UserPluginRelationMapper userPluginRelationMapper;
     private final ObjectMapper objectMapper;
     private final PluginToolFactory pluginToolFactory;
+    private final RagService ragService;
 
     // Spring AI 聊天模型（使用自动配置的默认模型）
     private final ChatModel chatModel;
@@ -238,8 +241,20 @@ public class AgentServiceImpl implements AgentService {
                 messages.add(new SystemMessage(agent.getSystemPrompt()));
             }
 
+            // RAG: 检索相关知识
+            String userQuestion = request.getQuestion();
+            try {
+                List<KnowledgeChunk> chunks = ragService.retrieve(id, userQuestion);
+                if (!CollectionUtils.isEmpty(chunks)) {
+                    userQuestion = ragService.buildPrompt(id, userQuestion, chunks);
+                }
+            } catch (Exception e) {
+                // RAG 失败不影响主流程
+                e.printStackTrace();
+            }
+
             // 添加用户问题
-            messages.add(new UserMessage(request.getQuestion()));
+            messages.add(new UserMessage(userQuestion));
 
             // 获取绑定的插件并转换为 ToolCallback
             List<Long> pluginIds = agentPluginRelationMapper.selectPluginIdsByAgentId(id);

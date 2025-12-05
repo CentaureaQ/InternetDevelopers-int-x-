@@ -9,8 +9,8 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties(prefix = "agent.embedding.tongyi")
 public class EmbeddingConfig {
     private String apiKey;
-    private String model = "text-embedding-v1";
-    private int dimension = 1536;
+    private String model = "text-embedding-v4";
+    private int dimension = 1024;
     private int batchSize = 10;
     private int maxRetries = 3;
     private long retryDelayMs = 1000;
