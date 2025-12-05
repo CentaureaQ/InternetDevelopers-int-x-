@@ -109,6 +109,77 @@
             </div>
 
             <div class="section-divider">
+              <span>知识库 & RAG</span>
+            </div>
+
+            <div class="form-group">
+              <el-form-item label="绑定知识库">
+                <el-select
+                  v-model="formData.knowledgeBaseId"
+                  placeholder="选择知识库（可选）"
+                  clearable
+                  @change="loadRagConfig"
+                >
+                  <el-option
+                    v-for="kb in knowledgeBases"
+                    :key="kb.id"
+                    :label="kb.name"
+                    :value="kb.id"
+                  />
+                </el-select>
+              </el-form-item>
+            </div>
+
+            <!-- RAG 配置 -->
+            <div v-if="formData.knowledgeBaseId" class="rag-config-group">
+              <el-divider />
+              <div class="subsection-title">RAG 参数配置</div>
+              
+              <el-form-item label="Top-K (返回结果数)">
+                <el-input-number
+                  v-model="formData.ragConfig.topK"
+                  :min="1"
+                  :max="20"
+                  controls-position="right"
+                  style="width: 100%"
+                />
+              </el-form-item>
+
+              <el-form-item label="相似度阈值">
+                <el-slider
+                  v-model="formData.ragConfig.threshold"
+                  :min="0"
+                  :max="1"
+                  :step="0.05"
+                  show-input
+                  :show-input-controls="false"
+                />
+              </el-form-item>
+
+              <el-form-item label="最大上下文长度">
+                <el-input-number
+                  v-model="formData.ragConfig.maxContextLength"
+                  :min="500"
+                  :max="10000"
+                  :step="100"
+                  controls-position="right"
+                  style="width: 100%"
+                />
+              </el-form-item>
+
+              <el-form-item label="相似度度量">
+                <el-select
+                  v-model="formData.ragConfig.similarityMetric"
+                  placeholder="选择相似度度量方式"
+                >
+                  <el-option label="余弦相似度 (Cosine)" value="cosine" />
+                  <el-option label="欧几里得距离 (Euclidean)" value="euclidean" />
+                  <el-option label="点积 (Dot Product)" value="dot" />
+                </el-select>
+              </el-form-item>
+            </div>
+
+            <div class="section-divider">
               <span>插件</span>
             </div>
 
@@ -203,10 +274,12 @@ import {
   ArrowLeft,
   InfoFilled
 } from '@element-plus/icons-vue'
-import { getAgent, createAgent, updateAgent, testAgent } from '@/api/agent'
+import { getAgent, createAgent, updateAgent, testAgent, type RagConfig } from '@/api/agent'
 import type { AgentCreateRequest, AgentUpdateRequest, AgentTestRequest } from '@/api/agent'
 import { listPlugins } from '@/api/plugin'
 import type { Plugin } from '@/api/plugin'
+import { fetchKnowledgeBases } from '@/api/knowledge'
+import type { KnowledgeBaseVO } from '@/api/knowledge'
 
 const router = useRouter()
 const route = useRoute()
@@ -224,6 +297,7 @@ const chatMessages = ref<Array<{
 }>>([])
 const chatContainer = ref<HTMLDivElement | null>(null)
 const plugins = ref<Plugin[]>([])
+const knowledgeBases = ref<KnowledgeBaseVO[]>([])
 
 const formData = reactive({
   name: '',
@@ -234,7 +308,14 @@ const formData = reactive({
   maxTokens: 2000,
   topP: 0.9,
   greeting: '你好！我是你的AI助手，有什么可以帮助你的吗？',
-  pluginIds: [] as number[]
+  pluginIds: [] as number[],
+  knowledgeBaseId: undefined as number | undefined,
+  ragConfig: {
+    topK: 3,
+    threshold: 0.6,
+    maxContextLength: 2000,
+    similarityMetric: 'cosine'
+  } as RagConfig
 })
 
 function goBack() {
@@ -248,6 +329,37 @@ async function loadPlugins() {
   } catch (error) {
     console.error('加载插件列表失败', error)
     ElMessage.error('加载插件列表失败')
+  }
+}
+
+async function loadKnowledgeBases() {
+  try {
+    knowledgeBases.value = await fetchKnowledgeBases()
+  } catch (error) {
+    console.error('加载知识库列表失败', error)
+    ElMessage.error('加载知识库列表失败')
+  }
+}
+
+function loadRagConfig(kbId: number | undefined) {
+  if (kbId) {
+    const kb = knowledgeBases.value.find(kb => kb.id === kbId)
+    if (kb) {
+      // 如果知识库有检索配置，可以解析并应用
+      try {
+        if (kb.retrievalConfig) {
+          const config = JSON.parse(kb.retrievalConfig)
+          formData.ragConfig = {
+            topK: config.topK || 3,
+            threshold: config.threshold || 0.6,
+            maxContextLength: config.maxContextLength || 2000,
+            similarityMetric: config.similarityMetric || 'cosine'
+          }
+        }
+      } catch (e) {
+        console.warn('解析知识库RAG配置失败，使用默认值')
+      }
+    }
   }
 }
 
@@ -271,7 +383,9 @@ async function saveDraft() {
         maxTokens: formData.maxTokens,
         topP: formData.topP
       },
-      pluginIds: formData.pluginIds
+      pluginIds: formData.pluginIds,
+      knowledgeBaseId: formData.knowledgeBaseId,
+      ragConfig: formData.knowledgeBaseId ? formData.ragConfig : undefined
     }
     
     if (isEdit.value && agentId.value) {
@@ -319,7 +433,9 @@ async function publishAgent() {
         maxTokens: formData.maxTokens,
         topP: formData.topP
       },
-      pluginIds: formData.pluginIds
+      pluginIds: formData.pluginIds,
+      knowledgeBaseId: formData.knowledgeBaseId,
+      ragConfig: formData.knowledgeBaseId ? formData.ragConfig : undefined
     }
     
     if (isEdit.value && agentId.value) {
@@ -481,6 +597,7 @@ function formatTime(timestamp: number) {
 
 onMounted(async () => {
   await loadPlugins()
+  await loadKnowledgeBases()
   const routeAgentId = route.params.id
   // 只有当ID存在且是有效数字时才进入编辑模式
   if (routeAgentId && !isNaN(Number(routeAgentId))) {
@@ -500,6 +617,10 @@ onMounted(async () => {
         formData.maxTokens = agent.modelConfig?.maxTokens ?? 2000
         formData.topP = agent.modelConfig?.topP ?? 0.9
         formData.pluginIds = agent.pluginIds || []
+        formData.knowledgeBaseId = agent.knowledgeBaseId
+        if (agent.ragConfig) {
+          formData.ragConfig = agent.ragConfig
+        }
         
         // 添加开场白到聊天
         if (formData.greeting) {
@@ -667,6 +788,23 @@ onMounted(async () => {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rag-config-group {
+  margin: var(--spacing-md) 0;
+  padding: var(--spacing-md);
+  background: #f5f7fa;
+  border-radius: var(--radius-md);
+  border-left: 4px solid var(--color-primary);
+}
+
+.subsection-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }

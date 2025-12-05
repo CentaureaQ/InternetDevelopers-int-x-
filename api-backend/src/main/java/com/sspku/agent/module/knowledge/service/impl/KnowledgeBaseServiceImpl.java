@@ -23,6 +23,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
             knowledgeBase.setUuid(UUID.randomUUID().toString());
         }
         // Set default values if not provided
+        if (knowledgeBase.getLevel() == null) knowledgeBase.setLevel("personal");
         if (knowledgeBase.getDocumentCount() == null) knowledgeBase.setDocumentCount(0);
         if (knowledgeBase.getChunkCount() == null) knowledgeBase.setChunkCount(0);
         if (knowledgeBase.getTotalSize() == null) knowledgeBase.setTotalSize(0L);

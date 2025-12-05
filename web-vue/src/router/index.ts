@@ -36,6 +36,18 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '智能体', requiresAuth: true }
       },
       {
+        path: 'knowledge',
+        name: 'Knowledge',
+        component: () => import('@/views/knowledge/index.vue'),
+        meta: { title: '知识库', requiresAuth: true }
+      },
+      {
+        path: 'knowledge/:id',
+        name: 'KnowledgeBaseDetail',
+        component: () => import('@/views/knowledge/detail.vue'),
+        meta: { title: '知识库详情', requiresAuth: true }
+      },
+      {
         path: 'plugins',
         name: 'Plugins',
         component: () => import('@/views/plugins/index.vue'),

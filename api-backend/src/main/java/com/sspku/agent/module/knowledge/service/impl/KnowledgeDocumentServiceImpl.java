@@ -18,7 +18,6 @@ import com.sspku.agent.module.knowledge.service.VectorStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -28,7 +27,6 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -116,12 +114,12 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
         // Actually, let's just run it in a new thread for now to simulate async without complex setup, 
         // or assume @Async is working if I self-inject.
         // I'll use a simple thread for now to ensure it's async without dependency issues.
-        new Thread(() -> processDocumentAsync(doc)).start();
+        new Thread(() -> processDocumentAsync(doc, kb)).start();
 
         return doc;
     }
 
-    public void processDocumentAsync(KnowledgeDocument doc) {
+    public void processDocumentAsync(KnowledgeDocument doc, KnowledgeBase kb) {
         try {
             // Update status to processing
             doc.setStatus("processing");
@@ -196,6 +194,15 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
             doc.setStatus("processed");
             doc.setProcessedAt(LocalDateTime.now());
             documentMapper.update(doc);
+
+            // Update knowledge base document count and chunk count
+            kb.setDocumentCount((kb.getDocumentCount() != null ? kb.getDocumentCount() : 0) + 1);
+            kb.setChunkCount((kb.getChunkCount() != null ? kb.getChunkCount() : 0) + chunks.size());
+            kb.setTotalSize((kb.getTotalSize() != null ? kb.getTotalSize() : 0L) + doc.getFileSize());
+            knowledgeBaseMapper.update(kb);
+            
+            log.info("Knowledge Base {} updated: documentCount={}, chunkCount={}", 
+                kb.getId(), kb.getDocumentCount(), kb.getChunkCount());
             
         } catch (Exception e) {
             log.error("Failed to process document: {}", doc.getUuid(), e);
