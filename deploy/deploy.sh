@@ -38,6 +38,17 @@ check_command() {
     fi
 }
 
+# ==================== 0. 数据库初始化 (可选) ====================
+if [ "$1" == "init-db" ]; then
+    log_step "0. 数据库初始化"
+    if [ -f "./init-db.sh" ]; then
+        chmod +x ./init-db.sh
+        ./init-db.sh
+    else
+        log_error "找不到 init-db.sh 脚本"
+    fi
+fi
+
 # ==================== 开始部署 ====================
 log_step "开始部署"
 log_info "时间: $(date '+%Y-%m-%d %H:%M:%S')"

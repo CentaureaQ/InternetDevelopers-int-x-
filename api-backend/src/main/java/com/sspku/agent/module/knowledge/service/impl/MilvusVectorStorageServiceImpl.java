@@ -137,6 +137,15 @@ public class MilvusVectorStorageServiceImpl implements VectorStorageService {
             return Collections.emptyList();
         }
 
+        // Ensure collection is loaded
+        try {
+            milvusClient.loadCollection(LoadCollectionParam.newBuilder()
+                    .withCollectionName(collectionName)
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to load collection {}, it might be already loaded or busy", collectionName);
+        }
+
         List<String> outFields = Collections.singletonList("doc_id");
         List<List<Float>> vectors = Collections.singletonList(queryVector);
 

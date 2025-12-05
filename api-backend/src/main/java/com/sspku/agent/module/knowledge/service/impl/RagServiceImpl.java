@@ -97,7 +97,46 @@ public class RagServiceImpl implements RagService {
             }
         }
 
-        // 5. Sort and Limit
+                // 5. Sort and Limit
+        allResults.sort(Comparator.comparingDouble(SearchResult::getScore).reversed());
+        if (allResults.size() > config.getTopK()) {
+            allResults = allResults.subList(0, config.getTopK());
+        }
+
+        // 6. Fetch Content from DB
+        if (CollUtil.isEmpty(allResults)) {
+            return Collections.emptyList();
+        }
+
+        List<Long> chunkIds = allResults.stream()
+                .map(SearchResult::getId)
+                .collect(Collectors.toList());
+        
+        List<KnowledgeChunk> chunks = chunkMapper.selectByIds(chunkIds);
+        
+        // Map chunks to results to preserve order and score (optional, but good for debugging)
+        // We return List<KnowledgeChunk>, so we just return the found chunks.
+        // Ideally, we should attach the score to the chunk or return a DTO.
+        // For now, let's just return the chunks in the order of scores.
+        
+        Map<Long, KnowledgeChunk> chunkMap = chunks.stream()
+                .collect(Collectors.toMap(KnowledgeChunk::getId, c -> c));
+        
+        List<KnowledgeChunk> sortedChunks = new ArrayList<>();
+        for (SearchResult result : allResults) {
+            KnowledgeChunk chunk = chunkMap.get(result.getId());
+            if (chunk != null) {
+                // We could set a transient score field if KnowledgeChunk had one
+                sortedChunks.add(chunk);
+            }
+        }
+        
+        return sortedChunks;
+    }
+
+    @Override
+    public String buildPrompt(List<KnowledgeChunk> chunks, String query) {
+
         allResults.sort((a, b) -> Float.compare(b.getScore(), a.getScore())); // Descending
         if (allResults.size() > config.getTopK()) {
             allResults = allResults.subList(0, config.getTopK());

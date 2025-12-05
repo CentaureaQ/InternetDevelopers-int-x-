@@ -60,14 +60,15 @@ public class TongyiEmbeddingServiceImpl implements EmbeddingService {
 
     @Override
     public List<Float> embedQuery(String text) {
-        return embedDocuments(Collections.singletonList(text)).get(0);
+        // Use "query" type for search queries
+        return callApi(Collections.singletonList(text), "query").get(0);
     }
 
     private List<List<Float>> getEmbeddingsWithRetry(List<String> texts) {
         int retries = 0;
         while (retries < embeddingConfig.getMaxRetries()) {
             try {
-                return callApi(texts);
+                return callApi(texts, "document");
             } catch (Exception e) {
                 retries++;
                 log.warn("Embedding API call failed, retrying ({}/{})", retries, embeddingConfig.getMaxRetries());
@@ -82,7 +83,7 @@ public class TongyiEmbeddingServiceImpl implements EmbeddingService {
         throw new RuntimeException("Max retries exceeded for embedding API");
     }
 
-    private List<List<Float>> callApi(List<String> texts) {
+    private List<List<Float>> callApi(List<String> texts, String textType) {
         // Real API call (DashScope)
         JSONObject input = new JSONObject();
         input.set("texts", texts);
@@ -92,7 +93,7 @@ public class TongyiEmbeddingServiceImpl implements EmbeddingService {
         body.set("input", input);
         
         JSONObject parameters = new JSONObject();
-        parameters.set("text_type", "document");
+        parameters.set("text_type", textType);
         body.set("parameters", parameters);
 
         try (HttpResponse response = HttpRequest.post(API_URL)

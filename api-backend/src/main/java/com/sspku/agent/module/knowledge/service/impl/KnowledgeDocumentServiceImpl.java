@@ -103,6 +103,9 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
         
         documentMapper.insert(doc);
 
+        // Update KB stats (doc count +1, size +fileSize)
+        knowledgeBaseMapper.updateStats(kb.getId(), 1, 0, file.getSize());
+
         // 5. Async process
         // Note: Calling async method from within the same class won't work with default proxy.
         // Ideally, this should be in a separate service or self-injected.
@@ -167,6 +170,8 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
             
             if (!chunkEntities.isEmpty()) {
                 chunkMapper.batchInsert(chunkEntities);
+                // Update KB stats (chunk count)
+                knowledgeBaseMapper.updateStats(doc.getKnowledgeBaseId(), 0, chunks.size(), 0);
             }
 
             // Vectorize
@@ -214,6 +219,10 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
             FileUtil.del(doc.getFilePath());
             // Delete DB record
             documentMapper.deleteByUuid(uuid);
+            
+            // Update KB stats
+            knowledgeBaseMapper.updateStats(doc.getKnowledgeBaseId(), -1, -doc.getChunkCount(), -doc.getFileSize());
+            
             // TODO: Delete vector data
         }
     }

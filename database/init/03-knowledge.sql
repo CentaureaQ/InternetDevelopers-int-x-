@@ -1,4 +1,8 @@
 -- 知识库表
+DROP TABLE IF EXISTS `knowledge_chunk`;
+DROP TABLE IF EXISTS `document`;
+DROP TABLE IF EXISTS `knowledge_base`;
+
 CREATE TABLE IF NOT EXISTS `knowledge_base` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
     `uuid` VARCHAR(64) NOT NULL COMMENT 'UUID',
@@ -44,3 +48,16 @@ CREATE TABLE IF NOT EXISTS `document` (
     INDEX `idx_kb_id` (`knowledge_base_id`),
     INDEX `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文档表';
+
+-- 文档分块表
+CREATE TABLE IF NOT EXISTS `knowledge_chunk` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    `document_id` BIGINT NOT NULL COMMENT '所属文档ID',
+    `kb_id` BIGINT NOT NULL COMMENT '所属知识库ID',
+    `chunk_index` INT NOT NULL COMMENT '分块索引',
+    `content` LONGTEXT COMMENT '分块内容',
+    `token_count` INT COMMENT 'Token数量',
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX `idx_doc_id` (`document_id`),
+    INDEX `idx_kb_id` (`kb_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文档分块表';

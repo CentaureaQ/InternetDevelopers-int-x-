@@ -91,4 +91,13 @@
         WHERE owner_id = #{ownerId}
         ORDER BY created_at DESC
     </select>
+
+    <update id="updateStats">
+        UPDATE knowledge_base
+        SET document_count = document_count + #{docCountDelta},
+            chunk_count = chunk_count + #{chunkCountDelta},
+            total_size = total_size + #{sizeDelta},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
 </mapper>
