@@ -118,7 +118,7 @@
         <el-button type="primary">选择文件</el-button>
         <template #tip>
           <div class="el-upload__tip">
-            支持上传 PDF, DOC, DOCX, TXT, MD 等文档格式，单个文件不超过 50MB
+            支持上传 TXT, MD 等文本文档格式，单个文件不超过 10MB
           </div>
         </template>
       </el-upload>
@@ -232,12 +232,19 @@ const handleUploadSuccess = (response: any) => {
   ElMessage.success('文档上传成功，正在处理...')
   fileList.value = []
   showUploadDialog.value = false
+  // Refresh both documents and knowledge base info to update counts
   refreshDocuments()
+  loadKnowledgeBase()
 }
 
 const handleUploadError = (error: any) => {
-  ElMessage.error('文档上传失败')
-  console.error(error)
+  // 优先显示后端返回的错误信息，其次是HTTP错误信息，最后是通用提示
+  const errorMessage = 
+    error?.response?.data?.message || 
+    error?.message || 
+    '文档上传失败'
+  ElMessage.error(errorMessage)
+  console.error('Upload error:', error)
 }
 
 const handleConfirmUpload = () => {

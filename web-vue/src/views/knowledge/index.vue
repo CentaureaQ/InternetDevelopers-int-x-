@@ -102,6 +102,7 @@ const formRef = ref()
 const formData = reactive<KnowledgeBaseCreateRequest>({
   name: '',
   description: '',
+  level: 'personal',
   accessLevel: 'private',
   chunkSize: 800,
   chunkOverlap: 50
@@ -130,6 +131,7 @@ const handleEdit = (kb: KnowledgeBaseVO) => {
   editingKb.value = kb
   formData.name = kb.name
   formData.description = kb.description || ''
+  formData.level = kb.level || 'personal'
   formData.accessLevel = kb.accessLevel || 'private'
   formData.chunkSize = kb.chunkSize || 800
   formData.chunkOverlap = kb.chunkOverlap || 50
@@ -193,6 +195,7 @@ const handleSave = async () => {
 const resetForm = () => {
   formData.name = ''
   formData.description = ''
+  formData.level = 'personal'
   formData.accessLevel = 'private'
   formData.chunkSize = 800
   formData.chunkOverlap = 50

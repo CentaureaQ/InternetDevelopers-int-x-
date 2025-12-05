@@ -10,6 +10,7 @@ export interface RagConfig {
 export interface KnowledgeBaseCreateRequest {
   name: string
   description?: string
+  level?: string
   chunkSize?: number
   chunkOverlap?: number
   accessLevel?: string
