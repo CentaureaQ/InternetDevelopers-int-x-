@@ -11,10 +11,12 @@ spring:
 
   ai:
     dashscope:
+      connection-timeout: 120000
+      read-timeout: 120000
       chat:
         options:
-          connect-timeout: 60000
-          read-timeout: 60000
+          connection-timeout: 120000
+          read-timeout: 120000
 
   datasource:
     url: jdbc:mysql://10.129.83.19:3306/ai_platform?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8&allowPublicKeyRetrieval=true

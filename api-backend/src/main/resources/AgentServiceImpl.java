@@ -25,7 +25,6 @@ import com.sspku.agent.module.knowledge.service.RagService;
 import com.sspku.agent.module.user.entity.User;
 import com.sspku.agent.module.agent.tool.PluginToolFactory;
 import lombok.RequiredArgsConstructor;
-import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
@@ -252,9 +251,9 @@ public class AgentServiceImpl implements AgentService {
             // RAG: 检索相关知识
             String userQuestion = request.getQuestion();
             try {
-                List<KnowledgeChunk> chunks = ragService.retrieve(id, userQuestion, request.getRagConfig());
+                List<KnowledgeChunk> chunks = ragService.retrieve(id, userQuestion);
                 if (!CollectionUtils.isEmpty(chunks)) {
-                    userQuestion = ragService.buildPrompt(id, userQuestion, chunks, request.getRagConfig());
+                    userQuestion = ragService.buildPrompt(id, userQuestion, chunks);
                 }
             } catch (Exception e) {
                 // RAG 失败不影响主流程
@@ -289,8 +288,7 @@ public class AgentServiceImpl implements AgentService {
             Prompt prompt = new Prompt(messages, options);
 
             // 调用模型
-            ChatClient chatClient = ChatClient.builder(chatModel).build();
-            ChatResponse response = chatClient.prompt(prompt).call().chatResponse();
+            ChatResponse response = chatModel.call(prompt);
 
             // 提取回复内容
             String reply = response.getResult().getOutput().getText();

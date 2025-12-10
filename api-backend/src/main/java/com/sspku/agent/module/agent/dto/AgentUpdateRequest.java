@@ -1,5 +1,6 @@
 package com.sspku.agent.module.agent.dto;
 
+import com.sspku.agent.module.knowledge.dto.RagConfig;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -26,4 +27,8 @@ public class AgentUpdateRequest {
     private ModelConfigRequest modelConfig;
 
     private List<Long> pluginIds;
+
+    private Long knowledgeBaseId;
+
+    private RagConfig ragConfig;
 }

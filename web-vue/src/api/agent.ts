@@ -70,6 +70,7 @@ export interface PageResponse<T> {
 
 export interface AgentTestRequest {
   question: string
+  ragConfig?: RagConfig
 }
 
 export interface AgentTestResponse {

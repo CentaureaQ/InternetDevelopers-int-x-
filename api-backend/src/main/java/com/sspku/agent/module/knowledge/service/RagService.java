@@ -15,13 +15,32 @@ public interface RagService {
     List<KnowledgeChunk> retrieve(Long agentId, String query);
 
     /**
+     * Retrieve relevant chunks for a query with specific configuration.
+     * @param agentId Agent ID
+     * @param query User query
+     * @param config RAG configuration
+     * @return List of relevant knowledge chunks
+     */
+    List<KnowledgeChunk> retrieve(Long agentId, String query, RagConfig config);
+
+    /**
      * Build the final prompt with context.
      * @param agentId Agent ID
      * @param query User query
      * @param chunks Retrieved chunks
-     * @return Final prompt string
+     * @return Prompt string
      */
     String buildPrompt(Long agentId, String query, List<KnowledgeChunk> chunks);
+
+    /**
+     * Build the final prompt with context and specific configuration.
+     * @param agentId Agent ID
+     * @param query User query
+     * @param chunks Retrieved chunks
+     * @param config RAG configuration
+     * @return Prompt string
+     */
+    String buildPrompt(Long agentId, String query, List<KnowledgeChunk> chunks, RagConfig config);
     
     /**
      * Get RAG configuration for an agent.

@@ -1,5 +1,6 @@
 package com.sspku.agent.module.agent.dto;
 
+import com.sspku.agent.module.knowledge.dto.RagConfig;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -31,6 +32,10 @@ public class AgentCreateRequest {
     private ModelConfigRequest modelConfig;
 
     private List<Long> pluginIds;
+
+    private Long knowledgeBaseId;
+
+    private RagConfig ragConfig;
 
     /**
      * 可选：显式指定智能体归属的用户ID；若不传则自动读取当前登录用户

@@ -313,7 +313,7 @@ const formData = reactive({
   ragConfig: {
     topK: 3,
     threshold: 0.6,
-    maxContextLength: 2000,
+    maxContextLength: 1000,
     similarityMetric: 'cosine'
   } as RagConfig
 })
@@ -352,7 +352,7 @@ function loadRagConfig(kbId: number | undefined) {
           formData.ragConfig = {
             topK: config.topK || 3,
             threshold: config.threshold || 0.6,
-            maxContextLength: config.maxContextLength || 2000,
+            maxContextLength: 1000, // 降低上下文长度，避免超时
             similarityMetric: config.similarityMetric || 'cosine'
           }
         }
@@ -505,7 +505,8 @@ async function sendMessage() {
     // 如果是编辑模式且有智能体ID，调用后端API
     if (isEdit.value && agentId.value) {
       const testRequest: AgentTestRequest = {
-        question: userInput
+        question: userInput,
+        ragConfig: formData.knowledgeBaseId ? formData.ragConfig : undefined
       }
       
       const response = await testAgent(agentId.value, testRequest)

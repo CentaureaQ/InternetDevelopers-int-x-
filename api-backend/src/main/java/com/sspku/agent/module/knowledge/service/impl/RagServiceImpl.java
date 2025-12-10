@@ -54,9 +54,15 @@ public class RagServiceImpl implements RagService {
 
     @Override
     public List<KnowledgeChunk> retrieve(Long agentId, String query) {
+        return retrieve(agentId, query, getRagConfig(agentId));
+    }
+
+    @Override
+    public List<KnowledgeChunk> retrieve(Long agentId, String query, RagConfig config) {
         log.info("RAG Retrieve started for agent {} with query: {}", agentId, query);
-        // 1. Get Config
-        RagConfig config = getRagConfig(agentId);
+        if (config == null) {
+            config = getRagConfig(agentId);
+        }
         log.info("RAG Config: {}", JSONUtil.toJsonStr(config));
         
         // 2. Get Knowledge Bases for Agent
@@ -127,7 +133,14 @@ public class RagServiceImpl implements RagService {
 
     @Override
     public String buildPrompt(Long agentId, String query, List<KnowledgeChunk> chunks) {
-        RagConfig config = getRagConfig(agentId);
+        return buildPrompt(agentId, query, chunks, getRagConfig(agentId));
+    }
+
+    @Override
+    public String buildPrompt(Long agentId, String query, List<KnowledgeChunk> chunks, RagConfig config) {
+        if (config == null) {
+            config = getRagConfig(agentId);
+        }
         StringBuilder contextBuilder = new StringBuilder();
         
         int currentLength = 0;

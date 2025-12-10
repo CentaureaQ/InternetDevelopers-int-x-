@@ -13,6 +13,12 @@ spring:
   ai:
     dashscope:
       api-key: ${AI_DASHSCOPE_API_KEY:xxx}
+      connect-timeout: 120000
+      read-timeout: 120000
+      chat:
+        options:
+          connect-timeout: 120000
+          read-timeout: 120000
 
 #    openai:
 #      api-key: ${AI_OPENAI_API_KEY:ms-93a0ea59-2c5f-4757-a1f3-8c3dbf5afcd4}
