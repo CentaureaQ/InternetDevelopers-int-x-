@@ -44,7 +44,7 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
     private final VectorStorageService vectorStorageService;
     private final EmbeddingConfig embeddingConfig;
 
-    @Value("${app.upload.path:/app/uploads}")
+    @Value("${app.upload.path:uploads}")
     private String uploadPath;
 
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -81,6 +81,9 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
         String uuid = IdUtil.simpleUUID();
         String fileName = uuid + "." + ext;
         File dest = new File(uploadPath, fileName);
+        if (!dest.isAbsolute()) {
+            dest = new File(System.getProperty("user.dir"), uploadPath + File.separator + fileName);
+        }
         if (!dest.getParentFile().exists()) {
             dest.getParentFile().mkdirs();
         }

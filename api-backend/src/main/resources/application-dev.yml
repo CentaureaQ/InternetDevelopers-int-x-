@@ -12,13 +12,8 @@ spring:
 
   ai:
     dashscope:
-      api-key: ${AI_DASHSCOPE_API_KEY:xxx}
-      connect-timeout: 120000
+      api-key: ${AI_DASHSCOPE_API_KEY:sk-88487044811e4a699b2d43907b369979}
       read-timeout: 120000
-      chat:
-        options:
-          connect-timeout: 120000
-          read-timeout: 120000
 
 #    openai:
 #      api-key: ${AI_OPENAI_API_KEY:ms-93a0ea59-2c5f-4757-a1f3-8c3dbf5afcd4}
@@ -58,6 +53,10 @@ spring:
     date-format: yyyy-MM-dd HH:mm:ss
     default-property-inclusion: non_null
 
+app:
+  upload:
+    path: uploads
+
 mybatis:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.sspku.agent.module.*.entity
@@ -66,7 +65,7 @@ mybatis:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 jwt:
-  secret: ${JWT_SECRET:api_backend_sspku_agent_2025_secure_key}
+  secret: ${JWT_SECRET:A0H7UwDPPPqVSeCn9K2aax9GCVBXwGbrG0h+x/upOBIjrF4/35+B/8rP8/uNAg7NHpuL86IGgqxbMT3UQpIuvg==}
   expiration: 86400000
   header: Authorization
   prefix: Bearer
@@ -83,12 +82,12 @@ jwt:
 agent:
   vector-store:
     milvus:
-      host: ${MILVUS_HOST:localhost}
+      host: ${MILVUS_HOST:10.129.83.19}
       port: ${MILVUS_PORT:19530}
       token: ${MILVUS_TOKEN:}
   embedding:
     tongyi:
-      api-key: ${TONGYI_API_KEY:}
+      api-key: ${TONGYI_API_KEY:sk-88487044811e4a699b2d43907b369979}
       model: text-embedding-v4
       dimension: 1024
       batch-size: 10

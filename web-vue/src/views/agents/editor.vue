@@ -131,7 +131,7 @@
             </div>
 
             <!-- RAG 配置 -->
-            <div v-if="formData.knowledgeBaseId" class="rag-config-group">
+            <div v-if="formData.knowledgeBaseId || formData.ragConfig" class="rag-config-group">
               <el-divider />
               <div class="subsection-title">RAG 参数配置</div>
               
@@ -247,8 +247,9 @@
               v-model="currentMessage"
               type="textarea"
               :rows="1"
-              placeholder="输入消息进行测试..."
-              @keydown.ctrl.enter="sendMessage"
+              placeholder="输入消息进行测试... (Enter发送，Shift+Enter换行)"
+              @keydown.enter.exact.prevent="sendMessage"
+              @keydown.enter.ctrl="sendMessage"
               resize="none"
             />
             <el-button
@@ -312,7 +313,7 @@ const formData = reactive({
   knowledgeBaseId: undefined as number | undefined,
   ragConfig: {
     topK: 3,
-    threshold: 0.6,
+    threshold: 0.2,
     maxContextLength: 1000,
     similarityMetric: 'cosine'
   } as RagConfig
@@ -385,7 +386,7 @@ async function saveDraft() {
       },
       pluginIds: formData.pluginIds,
       knowledgeBaseId: formData.knowledgeBaseId,
-      ragConfig: formData.knowledgeBaseId ? formData.ragConfig : undefined
+      ragConfig: formData.ragConfig
     }
     
     if (isEdit.value && agentId.value) {
@@ -435,7 +436,7 @@ async function publishAgent() {
       },
       pluginIds: formData.pluginIds,
       knowledgeBaseId: formData.knowledgeBaseId,
-      ragConfig: formData.knowledgeBaseId ? formData.ragConfig : undefined
+      ragConfig: formData.ragConfig
     }
     
     if (isEdit.value && agentId.value) {
@@ -506,7 +507,12 @@ async function sendMessage() {
     if (isEdit.value && agentId.value) {
       const testRequest: AgentTestRequest = {
         question: userInput,
-        ragConfig: formData.knowledgeBaseId ? formData.ragConfig : undefined
+        ragConfig: formData.knowledgeBaseId ? formData.ragConfig : undefined,
+        messages: chatMessages.value.map(m => ({
+          role: m.role,
+          content: m.content,
+          timestamp: m.timestamp
+        }))
       }
       
       const response = await testAgent(agentId.value, testRequest)

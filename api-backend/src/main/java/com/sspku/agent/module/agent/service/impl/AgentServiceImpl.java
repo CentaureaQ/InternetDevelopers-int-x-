@@ -21,10 +21,13 @@ import com.sspku.agent.module.agent.service.AgentService;
 import com.sspku.agent.module.agent.vo.AgentTestResponse;
 import com.sspku.agent.module.agent.vo.AgentVO;
 import com.sspku.agent.module.knowledge.entity.KnowledgeChunk;
+import com.sspku.agent.module.knowledge.dto.RagConfig;
 import com.sspku.agent.module.knowledge.service.RagService;
+import com.sspku.agent.module.knowledge.mapper.AgentKnowledgeRelationMapper;
 import com.sspku.agent.module.user.entity.User;
 import com.sspku.agent.module.agent.tool.PluginToolFactory;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -32,6 +35,7 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +51,7 @@ import java.util.stream.Collectors;
 /**
  * 智能体服务实现
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AgentServiceImpl implements AgentService {
@@ -58,6 +63,7 @@ public class AgentServiceImpl implements AgentService {
     private final ObjectMapper objectMapper;
     private final PluginToolFactory pluginToolFactory;
     private final RagService ragService;
+    private final AgentKnowledgeRelationMapper agentKnowledgeRelationMapper;
 
     // Spring AI 聊天模型（使用自动配置的默认模型）
     private final ChatModel chatModel;
@@ -85,6 +91,7 @@ public class AgentServiceImpl implements AgentService {
         agentMapper.insert(agent);
         userAgentRelationMapper.upsertOwner(ownerUserId, agent.getId());
         saveAgentPlugins(agent.getId(), request.getPluginIds());
+        saveAgentKnowledgeBase(agent.getId(), request.getKnowledgeBaseId());
         syncUserPlugins(ownerUserId, request.getPluginIds());
         return agent.getId();
     }
@@ -112,6 +119,18 @@ public class AgentServiceImpl implements AgentService {
         if (request.getModelConfig() != null) {
             validateModelConfig(request.getModelConfig());
             agent.setModelConfig(writeModelConfig(request.getModelConfig()));
+        }
+
+        if (request.getRagConfig() != null) {
+            try {
+                agent.setRagConfig(objectMapper.writeValueAsString(request.getRagConfig()));
+            } catch (JsonProcessingException e) {
+                throw new BusinessException("RAG配置序列化失败");
+            }
+        }
+
+        if (request.getKnowledgeBaseId() != null) {
+            saveAgentKnowledgeBase(id, request.getKnowledgeBaseId());
         }
 
         agentMapper.update(agent);
@@ -219,6 +238,8 @@ public class AgentServiceImpl implements AgentService {
 
         // 删除关联的插件关系
         agentPluginRelationMapper.deleteByAgentId(id);
+        // 删除关联的知识库关系
+        agentKnowledgeRelationMapper.deleteByAgentId(id);
         // 删除用户关联关系
         userAgentRelationMapper.deleteByAgentId(id);
         // 删除智能体
@@ -249,20 +270,65 @@ public class AgentServiceImpl implements AgentService {
                 messages.add(new SystemMessage(agent.getSystemPrompt()));
             }
 
-            // RAG: 检索相关知识
-            String userQuestion = request.getQuestion();
-            try {
-                List<KnowledgeChunk> chunks = ragService.retrieve(id, userQuestion, request.getRagConfig());
-                if (!CollectionUtils.isEmpty(chunks)) {
-                    userQuestion = ragService.buildPrompt(id, userQuestion, chunks, request.getRagConfig());
+            // 如果前端传入了会话历史，则优先使用历史构建消息
+            if (request.getMessages() != null && !request.getMessages().isEmpty()) {
+                // 仅对最后一条 user 消息做 RAG 增强
+                int lastUserIndex = -1;
+                for (int i = request.getMessages().size() - 1; i >= 0; i--) {
+                    var m = request.getMessages().get(i);
+                    if ("user".equalsIgnoreCase(m.getRole())) {
+                        lastUserIndex = i;
+                        break;
+                    }
                 }
-            } catch (Exception e) {
-                // RAG 失败不影响主流程
-                e.printStackTrace();
-            }
 
-            // 添加用户问题
-            messages.add(new UserMessage(userQuestion));
+                for (int i = 0; i < request.getMessages().size(); i++) {
+                    var m = request.getMessages().get(i);
+                    if (m == null || !StringUtils.hasText(m.getRole()) || !StringUtils.hasText(m.getContent())) {
+                        continue;
+                    }
+                    String role = m.getRole().toLowerCase(Locale.ROOT);
+                    switch (role) {
+                        case "user": {
+                            String content = m.getContent();
+                            if (i == lastUserIndex) {
+                                try {
+                                    List<KnowledgeChunk> chunks = ragService.retrieve(id, content,
+                                            request.getRagConfig());
+                                    if (!CollectionUtils.isEmpty(chunks)) {
+                                        content = ragService.buildPrompt(id, content, chunks, request.getRagConfig());
+                                    }
+                                } catch (Exception e) {
+                                    // RAG 失败不影响主流程
+                                    log.warn("RAG retrieve/build failed: {}", e.getMessage());
+                                }
+                            }
+                            messages.add(new UserMessage(content));
+                            break;
+                        }
+                        case "assistant": {
+                            messages.add(new AssistantMessage(m.getContent()));
+                            break;
+                        }
+                        default: {
+                            // 未知角色，跳过
+                        }
+                    }
+                }
+            } else {
+                // 否则退化为仅当前问题 + 可选 RAG 增强
+                String userQuestion = request.getQuestion();
+                try {
+                    List<KnowledgeChunk> chunks = ragService.retrieve(id, userQuestion, request.getRagConfig());
+                    if (!CollectionUtils.isEmpty(chunks)) {
+                        userQuestion = ragService.buildPrompt(id, userQuestion, chunks, request.getRagConfig());
+                    }
+                } catch (Exception e) {
+                    // RAG 失败不影响主流程
+                    log.warn("RAG retrieve/build failed: {}", e.getMessage());
+                }
+                messages.add(new UserMessage(userQuestion));
+            }
 
             // 获取绑定的插件并转换为 ToolCallback
             List<Long> pluginIds = agentPluginRelationMapper.selectPluginIdsByAgentId(id);
@@ -354,6 +420,27 @@ public class AgentServiceImpl implements AgentService {
         }
     }
 
+    private RagConfig readRagConfig(String json) {
+        if (!StringUtils.hasText(json)) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(json, RagConfig.class);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to parse RAG config", e);
+            return null;
+        }
+    }
+
+    private Long getKnowledgeBaseId(Long agentId) {
+        List<Long> kbIds = agentKnowledgeRelationMapper.selectKbIdsByAgentId(agentId);
+        if (CollectionUtils.isEmpty(kbIds)) {
+            return null;
+        }
+        // 约定单选知识库：取最新关联的一条
+        return kbIds.get(0);
+    }
+
     private AgentVO convertToVO(Agent agent, List<Long> pluginIds, Long ownerUserId) {
         return AgentVO.builder()
                 .id(agent.getId())
@@ -364,10 +451,19 @@ public class AgentServiceImpl implements AgentService {
                 .modelConfig(readModelConfig(agent.getModelConfig()))
                 .pluginIds(pluginIds)
                 .ownerUserId(ownerUserId)
+                .knowledgeBaseId(getKnowledgeBaseId(agent.getId()))
+                .ragConfig(readRagConfig(agent.getRagConfig()))
                 .status(agent.getStatus())
                 .createdAt(agent.getCreatedAt())
                 .updatedAt(agent.getUpdatedAt())
                 .build();
+    }
+
+    private void saveAgentKnowledgeBase(Long agentId, Long knowledgeBaseId) {
+        agentKnowledgeRelationMapper.deleteByAgentId(agentId);
+        if (knowledgeBaseId != null) {
+            agentKnowledgeRelationMapper.insertBatch(agentId, Collections.singletonList(knowledgeBaseId));
+        }
     }
 
     private void saveAgentPlugins(Long agentId, List<Long> pluginIds) {

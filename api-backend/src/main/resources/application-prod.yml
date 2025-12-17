@@ -49,6 +49,10 @@ spring:
     date-format: yyyy-MM-dd HH:mm:ss
     default-property-inclusion: non_null
 
+app:
+  upload:
+    path: /app/uploads
+
 mybatis:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.sspku.agent.module.*.entity

@@ -15,6 +15,7 @@ public interface KnowledgeBaseMapper {
     KnowledgeBase selectById(Long id);
     List<KnowledgeBase> selectAll();
     List<KnowledgeBase> selectByOwnerId(Long ownerId);
+    List<KnowledgeBase> selectByAgentId(Long agentId);
     
     int updateStats(@Param("id") Long id, 
                    @Param("docCountDelta") int docCountDelta, 

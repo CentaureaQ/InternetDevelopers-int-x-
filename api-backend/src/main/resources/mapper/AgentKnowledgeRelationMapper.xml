@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sspku.agent.module.knowledge.mapper.AgentKnowledgeRelationMapper">
+
+    <resultMap id="BaseResultMap" type="com.sspku.agent.module.knowledge.entity.AgentKnowledgeRelation">
+        <id column="id" property="id" />
+        <result column="agent_id" property="agentId" />
+        <result column="knowledge_base_id" property="knowledgeBaseId" />
+        <result column="created_at" property="createdAt" />
+    </resultMap>
+
+    <insert id="insert" parameterType="com.sspku.agent.module.knowledge.entity.AgentKnowledgeRelation" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO agent_knowledge_rel (agent_id, knowledge_base_id)
+        VALUES (#{agentId}, #{knowledgeBaseId})
+    </insert>
+
+    <insert id="insertBatch">
+        INSERT INTO agent_knowledge_rel (agent_id, knowledge_base_id)
+        VALUES
+        <foreach collection="knowledgeBaseIds" item="kbId" separator=",">
+            (#{agentId}, #{kbId})
+        </foreach>
+    </insert>
+
+    <delete id="deleteByAgentId" parameterType="java.lang.Long">
+        DELETE FROM agent_knowledge_rel WHERE agent_id = #{agentId}
+    </delete>
+
+    <delete id="deleteByAgentIdAndKbId">
+        DELETE FROM agent_knowledge_rel 
+        WHERE agent_id = #{agentId} AND knowledge_base_id = #{kbId}
+    </delete>
+
+    <select id="selectKbIdsByAgentId" parameterType="java.lang.Long" resultType="java.lang.Long">
+        SELECT knowledge_base_id
+        FROM agent_knowledge_rel
+        WHERE agent_id = #{agentId}
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="selectAgentIdsByKbId" parameterType="java.lang.Long" resultType="java.lang.Long">
+        SELECT agent_id FROM agent_knowledge_rel WHERE knowledge_base_id = #{kbId}
+    </select>
+
+    <select id="selectByAgentId" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        SELECT id, agent_id, knowledge_base_id, created_at 
+        FROM agent_knowledge_rel 
+        WHERE agent_id = #{agentId}
+        ORDER BY created_at ASC
+    </select>
+
+</mapper>

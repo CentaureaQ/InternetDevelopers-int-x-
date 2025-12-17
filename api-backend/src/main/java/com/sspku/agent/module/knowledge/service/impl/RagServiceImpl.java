@@ -66,9 +66,9 @@ public class RagServiceImpl implements RagService {
         log.info("RAG Config: {}", JSONUtil.toJsonStr(config));
         
         // 2. Get Knowledge Bases for Agent
-        List<KnowledgeBase> kbs = knowledgeBaseMapper.selectAll(); // Placeholder: Should be filtered by Agent
+        List<KnowledgeBase> kbs = knowledgeBaseMapper.selectByAgentId(agentId);
         if (CollUtil.isEmpty(kbs)) {
-            log.warn("No Knowledge Bases found");
+            log.warn("No Knowledge Bases found for agent {}", agentId);
             return Collections.emptyList();
         }
         log.info("Found {} Knowledge Bases", kbs.size());

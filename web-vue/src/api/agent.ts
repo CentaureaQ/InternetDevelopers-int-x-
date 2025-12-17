@@ -71,6 +71,7 @@ export interface PageResponse<T> {
 export interface AgentTestRequest {
   question: string
   ragConfig?: RagConfig
+  messages?: ChatMessage[]
 }
 
 export interface AgentTestResponse {
@@ -78,6 +79,12 @@ export interface AgentTestResponse {
   elapsedMs: number
   promptTokens: number
   completionTokens: number
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+  timestamp?: number
 }
 
 export const createAgent = (data: AgentCreateRequest): Promise<number> => {
