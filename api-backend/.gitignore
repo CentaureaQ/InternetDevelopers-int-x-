@@ -43,3 +43,4 @@ output*.log
 !application.yml
 !application.example.yml
 !application-prod.yml
+uploads/
