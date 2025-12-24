@@ -25,6 +25,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '智能体编辑器', requiresAuth: true }
   },
   {
+    path: '/workflows/editor/:id?',
+    name: 'WorkflowEditor',
+    component: () => import('@/views/workflows/editor.vue'),
+    meta: { title: '工作流编辑器', requiresAuth: true }
+  },
+  {
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
     meta: { requiresAuth: true },
@@ -34,6 +40,12 @@ const routes: RouteRecordRaw[] = [
         name: 'Agents',
         component: () => import('@/views/agents/index.vue'),
         meta: { title: '智能体', requiresAuth: true }
+      },
+      {
+        path: 'workflows',
+        name: 'Workflows',
+        component: () => import('@/views/workflows/index.vue'),
+        meta: { title: '工作流', requiresAuth: true }
       },
       {
         path: 'knowledge',

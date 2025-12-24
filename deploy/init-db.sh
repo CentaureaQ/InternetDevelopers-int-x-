@@ -67,6 +67,11 @@ docker run --rm -i \
         
         echo '3. 执行知识库表结构 (03-knowledge.sql)...'
         mysql -h$DB_HOST -P$DB_PORT -u$DB_USER -p$DB_PASS $DB_NAME < /sql/03-knowledge.sql
+
+        if [ -f /sql/04-workflow.sql ]; then
+            echo '4. 执行工作流表结构 (04-workflow.sql)...'
+            mysql -h$DB_HOST -P$DB_PORT -u$DB_USER -p$DB_PASS $DB_NAME < /sql/04-workflow.sql
+        fi
         
         echo '数据库初始化完成！'
     "
