@@ -101,6 +101,20 @@ public class PluginExecutorImpl implements PluginExecutor {
 
     private String doExecute(String urlTemplate, String method, Map<String, Object> arguments, String configJson) {
         try {
+            // 0. 检查是否开启 Mock 模式
+            if (configJson != null && !configJson.isEmpty()) {
+                try {
+                    Map<String, Object> config = objectMapper.readValue(configJson, Map.class);
+                    if (Boolean.TRUE.equals(config.get("mock"))) {
+                        String mockMsg = (String) config.getOrDefault("mockResponse", "插件模拟调用成功！");
+                        log.info("插件处于 Mock 模式，直接返回: {}", mockMsg);
+                        return mockMsg;
+                    }
+                } catch (Exception e) {
+                    log.warn("解析插件 Mock 配置失败", e);
+                }
+            }
+
             // 4.1 处理路径参数 (e.g. /users/{id})
             Map<String, Object> uriVariables = new HashMap<>();
             // 4.2 处理查询参数 (e.g. ?city=Beijing)

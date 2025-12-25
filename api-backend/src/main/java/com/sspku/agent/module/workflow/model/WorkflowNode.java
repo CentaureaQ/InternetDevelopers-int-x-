@@ -37,6 +37,7 @@ public class WorkflowNode {
     private String model;
     private String prompt;
     private String llmOutputKey;
+    private java.util.List<Long> pluginIds;
 
     // knowledgeRetrieval
     private String queryTemplate;

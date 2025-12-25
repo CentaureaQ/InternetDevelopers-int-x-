@@ -44,6 +44,7 @@ public class OpenAPIParser {
             if (servers != null && servers.isArray() && servers.size() > 0) {
                 extractedBaseUrl = servers.get(0).get("url").asText();
             }
+            
             final String baseUrl = extractedBaseUrl; // 确保是 final 的
             
             // 2. 遍历 Paths

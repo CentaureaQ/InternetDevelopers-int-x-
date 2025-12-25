@@ -35,6 +35,14 @@ public class PluginServiceImpl implements IPluginService {
         Plugin plugin = new Plugin();
         BeanUtil.copyProperties(createDTO, plugin);
         
+        // 确保 JSON 字段不为空字符串
+        if (plugin.getConfig() == null || plugin.getConfig().trim().isEmpty()) {
+            plugin.setConfig("{}");
+        }
+        if (plugin.getOpenapiSpec() == null || plugin.getOpenapiSpec().trim().isEmpty()) {
+            plugin.setOpenapiSpec("{}");
+        }
+        
         // 设置默认值
         plugin.setType("custom"); // 默认为自定义插件
         plugin.setStatus("disabled"); // 默认为禁用状态
@@ -60,6 +68,14 @@ public class PluginServiceImpl implements IPluginService {
         }
 
         BeanUtil.copyProperties(updateDTO, plugin, "id", "createdAt", "updatedAt", "type");
+        
+        // 确保 JSON 字段不为空字符串
+        if (plugin.getConfig() == null || plugin.getConfig().trim().isEmpty()) {
+            plugin.setConfig("{}");
+        }
+        if (plugin.getOpenapiSpec() == null || plugin.getOpenapiSpec().trim().isEmpty()) {
+            plugin.setOpenapiSpec("{}");
+        }
         
         pluginMapper.updateById(plugin);
         

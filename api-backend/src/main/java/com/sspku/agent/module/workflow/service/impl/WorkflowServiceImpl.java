@@ -21,6 +21,7 @@ import com.sspku.agent.module.workflow.vo.WorkflowTraceEvent;
 import com.sspku.agent.module.workflow.vo.WorkflowVO;
 import com.sspku.agent.module.knowledge.entity.KnowledgeChunk;
 import com.sspku.agent.module.knowledge.service.RagService;
+import com.sspku.agent.module.agent.tool.PluginToolFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -28,10 +29,12 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
@@ -52,6 +55,7 @@ public class WorkflowServiceImpl implements WorkflowService {
     private final ObjectMapper objectMapper;
     private final ChatModel chatModel;
     private final RagService ragService;
+    private final PluginToolFactory pluginToolFactory;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -239,12 +243,13 @@ public class WorkflowServiceImpl implements WorkflowService {
                     break;
                 case "llm":
                     event = runLlmNode(node, inputs, vars);
-                    if ("success".equals(event.getStatus())) {
+                    if ("success".equals(event.getStatus()) && event.getOutput() instanceof Map<?, ?> outMap) {
                         String outputKey = StringUtils.hasText(node.getLlmOutputKey()) ? node.getLlmOutputKey()
                                 : "llmOutput";
-                        vars.put(outputKey, event.getOutput());
+                        Object text = outMap.get("text");
+                        vars.put(outputKey, text);
                         // keep a common alias
-                        vars.put("llmOutput", event.getOutput());
+                        vars.put("llmOutput", text);
                     }
                     nodeOutputs.put(node.getId(), event.getOutput());
                     break;
@@ -296,20 +301,50 @@ public class WorkflowServiceImpl implements WorkflowService {
         try {
             String model = StringUtils.hasText(llm.getModel()) ? llm.getModel() : "qwen-max-latest";
             String template = StringUtils.hasText(llm.getPrompt()) ? llm.getPrompt() : "请回答：{{inputs.query}}";
+            
+            // 先校验变量是否存在
+            validateVariables(template, inputs, vars);
+            
             String promptText = renderTemplate(template, inputs, vars);
 
-            Prompt prompt = new Prompt(List.of(new UserMessage(promptText)),
-                    org.springframework.ai.model.tool.ToolCallingChatOptions.builder()
-                            .model(model)
-                            .temperature(0.7)
-                            .topP(0.9)
-                            .build());
+            var optionsBuilder = org.springframework.ai.model.tool.ToolCallingChatOptions.builder()
+                    .model(model)
+                    .temperature(0.7)
+                    .topP(0.9);
+
+            if (!CollectionUtils.isEmpty(llm.getPluginIds())) {
+                log.info("LLM Node {} binding plugins: {}", llm.getId(), llm.getPluginIds());
+                List<ToolCallback> toolCallbacks = pluginToolFactory.createToolCallbacks(llm.getPluginIds());
+                if (!CollectionUtils.isEmpty(toolCallbacks)) {
+                    log.info("LLM Node {} created {} tool callbacks", llm.getId(), toolCallbacks.size());
+                    optionsBuilder.toolCallbacks(toolCallbacks);
+                } else {
+                    log.warn("LLM Node {} failed to create tool callbacks for ids: {}", llm.getId(), llm.getPluginIds());
+                }
+            }
+
+            Prompt prompt = new Prompt(List.of(new UserMessage(promptText)), optionsBuilder.build());
 
             ChatClient chatClient = ChatClient.builder(chatModel).build();
             ChatResponse response = chatClient.prompt(prompt).call().chatResponse();
-            String reply = response.getResult().getOutput().getText();
+            
+            if (response == null || response.getResult() == null || response.getResult().getOutput() == null) {
+                throw new BusinessException("LLM 调用返回空结果，请检查模型配置或 API 状态");
+            }
+            
+            var assistantMessage = response.getResult().getOutput();
+            String reply = assistantMessage.getText() != null ? assistantMessage.getText() : "";
+            List<?> toolCalls = assistantMessage.getToolCalls();
+
+            if (!CollectionUtils.isEmpty(toolCalls)) {
+                log.info("LLM Node [{}] called tools: {}", llm.getId(), toolCalls);
+            }
 
             long finished = Instant.now().toEpochMilli();
+            Map<String, Object> outputData = new HashMap<>();
+            outputData.put("text", reply);
+            outputData.put("toolCalls", toolCalls);
+
             return WorkflowTraceEvent.builder()
                     .nodeId(llm.getId())
                     .nodeType(llm.getType())
@@ -317,7 +352,7 @@ public class WorkflowServiceImpl implements WorkflowService {
                     .startedAt(started)
                     .finishedAt(finished)
                     .input(Map.of("model", model, "prompt", promptText))
-                    .output(reply)
+                    .output(outputData)
                     .build();
         } catch (Exception e) {
             long finished = Instant.now().toEpochMilli();
@@ -328,7 +363,7 @@ public class WorkflowServiceImpl implements WorkflowService {
                     .startedAt(started)
                     .finishedAt(finished)
                     .input(Map.of("inputs", inputs))
-                    .error(e.getMessage())
+                    .error(e.getMessage() != null ? e.getMessage() : e.toString())
                     .build();
         }
     }
@@ -339,6 +374,10 @@ public class WorkflowServiceImpl implements WorkflowService {
         try {
             String queryTemplate = StringUtils.hasText(node.getQueryTemplate()) ? node.getQueryTemplate()
                     : "{{inputs.query}}";
+            
+            // 校验变量
+            validateVariables(queryTemplate, inputs, vars);
+            
             String query = renderTemplate(queryTemplate, inputs, vars);
 
             String agentIdKey = StringUtils.hasText(node.getAgentIdKey()) ? node.getAgentIdKey() : "agentId";
@@ -389,7 +428,7 @@ public class WorkflowServiceImpl implements WorkflowService {
                     .startedAt(started)
                     .finishedAt(finished)
                     .input(Map.of("inputs", inputs, "vars", vars))
-                    .error(e.getMessage())
+                    .error(e.getMessage() != null ? e.getMessage() : e.toString())
                     .build();
         }
     }
@@ -401,6 +440,13 @@ public class WorkflowServiceImpl implements WorkflowService {
             String partsText = node.getPartsText() != null ? node.getPartsText() : "";
             String separator = node.getSeparator() != null ? node.getSeparator() : "\n";
             String outputKey = StringUtils.hasText(node.getTextOutputKey()) ? node.getTextOutputKey() : "text";
+
+            // 校验所有 parts 中的变量
+            if (StringUtils.hasText(partsText)) {
+                for (String part : partsText.split("\\r?\\n")) {
+                    validateVariables(part.trim(), inputs, vars);
+                }
+            }
 
             List<String> parts = Arrays.stream(partsText.split("\\r?\\n"))
                     .map(String::trim)
@@ -429,7 +475,7 @@ public class WorkflowServiceImpl implements WorkflowService {
                     .startedAt(started)
                     .finishedAt(finished)
                     .input(Map.of("inputs", inputs, "vars", vars))
-                    .error(e.getMessage())
+                    .error(e.getMessage() != null ? e.getMessage() : e.toString())
                     .build();
         }
     }
@@ -470,7 +516,7 @@ public class WorkflowServiceImpl implements WorkflowService {
                     .startedAt(started)
                     .finishedAt(finished)
                     .input(Map.of("inputs", inputs, "vars", vars))
-                    .error(e.getMessage())
+                    .error(e.getMessage() != null ? e.getMessage() : e.toString())
                     .build();
         }
     }
@@ -482,6 +528,10 @@ public class WorkflowServiceImpl implements WorkflowService {
             String targetKey = StringUtils.hasText(node.getTargetKey()) ? node.getTargetKey() : "answer";
             String valueTemplate = StringUtils.hasText(node.getValueTemplate()) ? node.getValueTemplate()
                     : "{{vars.llmOutput}}";
+            
+            // 校验变量
+            validateVariables(valueTemplate, inputs, vars);
+            
             String value = renderTemplate(valueTemplate, inputs, vars);
 
             long finished = Instant.now().toEpochMilli();
@@ -504,26 +554,50 @@ public class WorkflowServiceImpl implements WorkflowService {
                     .startedAt(started)
                     .finishedAt(finished)
                     .input(Map.of("inputs", inputs, "vars", vars))
-                    .error(e.getMessage())
+                    .error(e.getMessage() != null ? e.getMessage() : e.toString())
                     .build();
         }
     }
 
     private WorkflowTraceEvent runEndNode(WorkflowNode end, Map<String, Object> vars) {
         long started = Instant.now().toEpochMilli();
-        long finished = started;
-        String outputKey = StringUtils.hasText(end.getOutputKey()) ? end.getOutputKey() : "answer";
-        Object out = vars.get(outputKey);
-        Map<String, Object> output = Map.of(outputKey, out);
-        return WorkflowTraceEvent.builder()
-                .nodeId(end.getId())
-                .nodeType(end.getType())
-                .status("success")
-                .startedAt(started)
-                .finishedAt(finished)
-                .input(Map.of("outputKey", outputKey))
-                .output(output)
-                .build();
+        try {
+            String outputKey = StringUtils.hasText(end.getOutputKey()) ? end.getOutputKey() : "answer";
+            Object out = vars.get(outputKey);
+            
+            // 如果默认的 answer 没找到，尝试找 llmOutput 作为兜底
+            if (out == null && "answer".equals(outputKey)) {
+                out = vars.get("llmOutput");
+                if (out != null) {
+                    outputKey = "llmOutput";
+                }
+            }
+
+            if (out == null) {
+                throw new BusinessException("结束节点未找到输出变量: " + outputKey + "。请检查上游节点的输出变量名是否匹配。可用变量有: " + vars.keySet());
+            }
+
+            Map<String, Object> output = new HashMap<>();
+            output.put(outputKey, out);
+            return WorkflowTraceEvent.builder()
+                    .nodeId(end.getId())
+                    .nodeType(end.getType())
+                    .status("success")
+                    .startedAt(started)
+                    .finishedAt(Instant.now().toEpochMilli())
+                    .input(Map.of("outputKey", outputKey))
+                    .output(output)
+                    .build();
+        } catch (Exception e) {
+            return WorkflowTraceEvent.builder()
+                    .nodeId(end.getId())
+                    .nodeType(end.getType())
+                    .status("error")
+                    .startedAt(started)
+                    .finishedAt(Instant.now().toEpochMilli())
+                    .error(e.getMessage() != null ? e.getMessage() : "未知错误")
+                    .build();
+        }
     }
 
     private String normalizeType(String rawType) {
@@ -629,6 +703,29 @@ public class WorkflowServiceImpl implements WorkflowService {
         }
         mv.appendTail(sb);
         return sb.toString();
+    }
+
+    private void validateVariables(String template, Map<String, Object> inputs, Map<String, Object> vars) {
+        if (!StringUtils.hasText(template)) return;
+
+        // 检查 inputs.xxx
+        Matcher m = INPUT_VAR_PATTERN.matcher(template);
+        while (m.find()) {
+            String path = m.group(1);
+            if (resolvePath(inputs, path) == null) {
+                throw new BusinessException("缺失输入变量: inputs." + path + "。请检查工作流输入配置。");
+            }
+        }
+
+        // 检查 vars.xxx
+        Pattern varsPattern = Pattern.compile("\\{\\{\\s*vars\\.([a-zA-Z0-9_\\.]+)\\s*\\}\\}");
+        Matcher mv = varsPattern.matcher(template);
+        while (mv.find()) {
+            String path = mv.group(1);
+            if (resolvePath(vars, path) == null) {
+                throw new BusinessException("缺失中间变量: vars." + path + "。请检查上游节点的输出变量名是否与此处引用一致。");
+            }
+        }
     }
 
     private Object resolvePath(Map<String, Object> root, String dottedPath) {

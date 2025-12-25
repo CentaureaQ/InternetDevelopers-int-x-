@@ -255,6 +255,23 @@
                 <el-form-item label="输出字段名 (llmOutputKey)">
                   <el-input v-model="selectedNode.llmOutputKey" placeholder="llmOutput" />
                 </el-form-item>
+                <el-form-item label="绑定插件">
+                  <el-select
+                    v-model="selectedNode.pluginIds"
+                    multiple
+                    collapse-tags
+                    collapse-tags-indicator
+                    placeholder="选择要绑定的插件"
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="p in availablePlugins"
+                      :key="p.id"
+                      :label="p.name"
+                      :value="p.id"
+                    />
+                  </el-select>
+                </el-form-item>
               </template>
 
               <template v-else-if="selectedNode.type === 'knowledgeRetrievalNodeState'">
@@ -393,6 +410,7 @@ import {
   debugWorkflow,
   type WorkflowVO
 } from '@/api/workflow'
+import { listPlugins, type Plugin } from '@/api/plugin'
 
 const router = useRouter()
 const route = useRoute()
@@ -402,6 +420,17 @@ const isSaving = ref(false)
 const isRunning = ref(false)
 
 const inspectorMode = ref<'node' | 'debug'>('node')
+
+const availablePlugins = ref<Plugin[]>([])
+
+async function fetchPlugins() {
+  try {
+    const res = await listPlugins()
+    availablePlugins.value = (res as any) || []
+  } catch (error) {
+    console.error('获取插件列表失败', error)
+  }
+}
 
 const workflowTitle = computed(() => {
   const name = (form.value.name || '').trim()
@@ -570,6 +599,7 @@ interface CanvasNode {
   model?: string
   prompt?: string
   llmOutputKey?: string
+  pluginIds?: number[]
 
   // knowledgeRetrieval
   queryTemplate?: string
@@ -1018,6 +1048,7 @@ function buildGraphString() {
         base.model = n.model
         base.prompt = n.prompt
         base.llmOutputKey = n.llmOutputKey || 'llmOutput'
+        base.pluginIds = n.pluginIds
       }
       if (n.type === 'knowledgeRetrievalNodeState') {
         base.queryTemplate = n.queryTemplate
@@ -1072,6 +1103,7 @@ function applyGraphString(graphText: string) {
           node.model = n.model || 'qwen-max-latest'
           node.prompt = n.prompt || '请结合知识回答：\n\n{{vars.knowledge}}\n\n问题：{{inputs.query}}'
           node.llmOutputKey = n.llmOutputKey || 'llmOutput'
+          node.pluginIds = n.pluginIds || []
         }
         if (type === 'knowledgeRetrievalNodeState') {
           node.queryTemplate = n.queryTemplate || '{{inputs.query}}'
@@ -1239,6 +1271,7 @@ onMounted(() => {
   window.addEventListener('resize', updateCanvasWidth)
   window.addEventListener('keydown', handleKeydown)
   loadWorkflow()
+  fetchPlugins()
 })
 </script>
 
