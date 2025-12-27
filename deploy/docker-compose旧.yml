@@ -1,0 +1,126 @@
+version: "3.8"
+
+services:
+  mysql:
+    container_name: ${PROJECT_NAME:-health-agent}-mysql
+    image: mysql:8
+    restart: unless-stopped
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ai_platform}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+      TZ: ${TZ:-Asia/Shanghai}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ../database/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  phpmyadmin:
+    container_name: ${PROJECT_NAME:-health-agent}-phpmyadmin
+    image: phpmyadmin:latest
+    restart: unless-stopped
+    ports:
+      - "${PHPMYADMIN_PORT:-8081}:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+      UPLOAD_LIMIT: 50M
+      TZ: ${TZ:-Asia/Shanghai}
+    networks:
+      - app-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  backend:
+    container_name: ${PROJECT_NAME:-health-agent}-backend
+    build:
+      context: ../api-backend
+      dockerfile: Dockerfile
+    image: ${PROJECT_NAME:-health-agent}-backend:latest
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    environment:
+      # 激活生产环境配置
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      
+      # 数据库配置（连接 mysql 服务）
+      DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-ai_platform}?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
+      DATASOURCE_USERNAME: root
+      DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+      
+      # Java 运行参数
+      JAVA_OPTS: ${JAVA_OPTS:--Xms512m -Xmx1g}
+      
+      # 时区
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - backend-logs:/app/logs
+    networks:
+      - app-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+    # ⚠️ 不配置 healthcheck（除非项目有 Actuator）
+  
+    # ==================== 前端移动端服务 ====================
+
+  web-vue:
+    container_name: ${PROJECT_NAME:-health-agent}-web-vue
+    build:
+      context: ../web-vue
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV:-production}
+    image: ${PROJECT_NAME:-health-agent}-web-vue:latest
+    restart: unless-stopped
+    ports:
+      - "${WEB_VUE_PORT:-80}:80"
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    networks:
+      - app-network
+    depends_on:
+      - backend  # ⭐ 等待后端服务启动（不要求健康检查）
+
+  h5-mobile:
+    container_name: ${PROJECT_NAME:-health-agent}-h5-mobile
+    build:
+      context: ../h5-mobile
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV:-production}
+    image: ${PROJECT_NAME:-health-agent}-h5-mobile:latest
+    restart: unless-stopped
+    ports:
+      - "${H5_MOBILE_PORT:-81}:80"
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    networks:
+      - app-network
+    depends_on:
+      - backend  # ⭐ 等待后端服务启动（不要求健康检查）
+networks:
+  app-network:
+    driver: bridge
+    name: ${PROJECT_NAME:-health-agent}-network
+
+volumes:
+  mysql-data:
+    driver: local
+    name: ${PROJECT_NAME:-health-agent}-mysql-data
+  backend-logs:
+    driver: local

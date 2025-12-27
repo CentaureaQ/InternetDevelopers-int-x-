@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sspku.agent.module.workflow.mapper.WorkflowMapper">
+
+    <resultMap id="WorkflowResultMap" type="com.sspku.agent.module.workflow.entity.Workflow">
+        <id column="id" property="id"/>
+        <result column="owner_user_id" property="ownerUserId"/>
+        <result column="name" property="name"/>
+        <result column="description" property="description"/>
+        <result column="status" property="status"/>
+        <result column="version" property="version"/>
+        <result column="graph" property="graph"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO workflow (owner_user_id, name, description, status, version, graph)
+        VALUES (#{ownerUserId}, #{name}, #{description}, #{status}, #{version}, #{graph})
+    </insert>
+
+    <update id="update">
+        UPDATE workflow
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="version != null">version = #{version},</if>
+            <if test="graph != null">graph = #{graph},</if>
+        </set>
+        WHERE id = #{id} AND owner_user_id = #{ownerUserId}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE workflow
+        SET status = #{status}
+        WHERE id = #{id} AND owner_user_id = #{ownerUserId}
+    </update>
+
+    <delete id="deleteByIdAndOwner">
+        DELETE FROM workflow WHERE id = #{id} AND owner_user_id = #{ownerUserId}
+    </delete>
+
+    <select id="selectByIdAndOwner" resultMap="WorkflowResultMap">
+        SELECT * FROM workflow WHERE id = #{id} AND owner_user_id = #{ownerUserId}
+    </select>
+
+    <select id="countByCondition" resultType="long">
+        SELECT COUNT(1)
+        FROM workflow
+        <where>
+            owner_user_id = #{ownerUserId}
+            <if test="keyword != null and keyword != ''">
+                AND (name LIKE CONCAT('%', #{keyword}, '%')
+                OR description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectPageByCondition" resultMap="WorkflowResultMap">
+        SELECT *
+        FROM workflow
+        <where>
+            owner_user_id = #{ownerUserId}
+            <if test="keyword != null and keyword != ''">
+                AND (name LIKE CONCAT('%', #{keyword}, '%')
+                OR description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+        ORDER BY updated_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+</mapper>

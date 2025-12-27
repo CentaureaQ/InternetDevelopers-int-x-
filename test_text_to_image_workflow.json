@@ -1,0 +1,36 @@
+{
+  "nodes": [
+    {
+      "id": "start_1",
+      "type": "startNodeStart",
+      "x": 100,
+      "y": 150
+    },
+    {
+      "id": "textToImage_1",
+      "type": "textToImageNodeState",
+      "x": 350,
+      "y": 150,
+      "textToImagePrompt": "{{inputs.prompt}}",
+      "textToImageModel": "flux-schnell",
+      "textToImageOutputKey": "imageUrl"
+    },
+    {
+      "id": "end_1",
+      "type": "endNodeEnd",
+      "x": 600,
+      "y": 150,
+      "outputKey": "result"
+    }
+  ],
+  "edges": [
+    {
+      "from": "start_1",
+      "to": "textToImage_1"
+    },
+    {
+      "from": "textToImage_1",
+      "to": "end_1"
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+# ===== 基础与系统文件 =====
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+*.swo
+
+# ===== IDE 与编辑器 =====
+.vscode/
+.idea/
+*.iml
+
+# ===== 运行与构建产物 =====
+node_modules/
+dist/
+build/
+coverage/
+target/
+out/
+
+# Python
+__pycache__/
+.venv/
+venv/
+.pytest_cache/
+
+# ===== 环境变量与密钥（不要上传） =====
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.local
+**/.env.*.local
+**/*.key
+**/*.pem
+**/secrets.*
+
+# 后端本地敏感配置（提供 application.example.yml 作为模板）
+api-backend/src/main/resources/application.yml
+
+# 可选：本地化/私有变体（若存在）
+**/application-local.yml
+**/application-*.local.yml
+
+# ===== 按你的要求不上传的内容 =====
+# 1) 整个 docs 目录
+#docs/
+
+# 2) 根目录下 html 文档目录
+html/
+
+# 3) 所有 Markdown 文档（*.md）
+# *.md
+# **/*.md
+
+# ===== 项目子模块常见忽略（冗余但更稳妥） =====
+web-admin/node_modules/
+web-admin/dist/
+h5-mobile/node_modules/
+h5-mobile/dist/
+api-backend/target/
+rag-service/__pycache__/
+scripts/__pycache__/
+
+# ===== 数据库数据文件 =====
+database/redis/data/
+database/mysql/data/
+
+# Docker volumes
+deploy/volumes/

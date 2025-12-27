@@ -1,0 +1,43 @@
+{
+  "nodes": [
+    {
+      "id": "start1",
+      "type": "startNodeStart",
+      "x": 100,
+      "y": 100
+    },
+    {
+      "id": "llm1",
+      "type": "llmNodeState",
+      "x": 300,
+      "y": 100,
+      "model": "qwen-max-latest",
+      "prompt": "请回答：{{inputs.query}}",
+      "llmOutputKey": "llmOutput"
+    },
+    {
+      "id": "end1",
+      "type": "endNodeEnd",
+      "x": 500,
+      "y": 100,
+      "outputKey": "answer"
+    }
+  ],
+  "edges": [
+    {
+      "from": "start1",
+      "to": "llm1"
+    },
+    {
+      "from": "llm1",
+      "to": "end1"
+    }
+  ]
+}
+
+// 修复说明：
+// 1. 添加了llm节点（id: llm1），配置了模型和prompt
+// 2. 添加了节点之间的连线，确保执行顺序为start -> llm -> end
+// 3. llm节点会将输出写入llmOutput变量
+// 4. end节点默认查找answer变量，找不到时会自动回退到llmOutput
+// 5. 这样配置后，工作流可以正常执行，不会出现"未找到输出变量"的错误

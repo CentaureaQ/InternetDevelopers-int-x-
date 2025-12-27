@@ -1,0 +1,38 @@
+{
+  "nodes": [
+    {
+      "id": "start1",
+      "type": "startNodeStart",
+      "x": 100,
+      "y": 100
+    },
+    {
+      "id": "http1",
+      "type": "httpNodeState",
+      "x": 300,
+      "y": 100,
+      "httpUrl": "https://jsonplaceholder.typicode.com/posts/1",
+      "httpMethod": "GET",
+      "httpHeaders": "{\"Content-Type\": \"application/json\"}",
+      "httpBody": "",
+      "httpOutputKey": "httpResult"
+    },
+    {
+      "id": "end1",
+      "type": "endNodeEnd",
+      "x": 500,
+      "y": 100,
+      "outputKey": "httpResult"
+    }
+  ],
+  "edges": [
+    {
+      "from": "start1",
+      "to": "http1"
+    },
+    {
+      "from": "http1",
+      "to": "end1"
+    }
+  ]
+}

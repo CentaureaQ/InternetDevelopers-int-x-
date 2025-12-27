@@ -1,0 +1,95 @@
+{
+  "nodes": [
+    {
+      "id": "start1",
+      "type": "startNodeStart",
+      "x": 100,
+      "y": 100
+    },
+    {
+      "id": "parallel1",
+      "type": "parallelNodeState",
+      "x": 300,
+      "y": 100,
+      "parallelCalls": 2,
+      "parallelOutputKey": "parallelResults"
+    },
+    {
+      "id": "http1",
+      "type": "httpNodeState",
+      "x": 500,
+      "y": 50,
+      "httpUrl": "https://jsonplaceholder.typicode.com/posts/1",
+      "httpMethod": "GET",
+      "httpHeaders": "{\"Content-Type\": \"application/json\"}",
+      "httpBody": "",
+      "httpOutputKey": "httpResult1"
+    },
+    {
+      "id": "http2",
+      "type": "httpNodeState",
+      "x": 500,
+      "y": 150,
+      "httpUrl": "https://jsonplaceholder.typicode.com/posts/2",
+      "httpMethod": "GET",
+      "httpHeaders": "{\"Content-Type\": \"application/json\"}",
+      "httpBody": "",
+      "httpOutputKey": "httpResult2"
+    },
+    {
+      "id": "loop1",
+      "type": "loopNodeState",
+      "x": 700,
+      "y": 100,
+      "loopList": "[\"item1\", \"item2\", \"item3\"]",
+      "loopIterationVar": "loopItem",
+      "loopMaxIterations": 10,
+      "loopOutputKey": "loopResults"
+    },
+    {
+      "id": "textConcat1",
+      "type": "textConcatNodeState",
+      "x": 900,
+      "y": 100,
+      "textConcatText": "处理: {{loopItem}}",
+      "textConcatOutputKey": "processedItem"
+    },
+    {
+      "id": "end1",
+      "type": "endNodeEnd",
+      "x": 1100,
+      "y": 100,
+      "outputKey": "processedItem"
+    }
+  ],
+  "edges": [
+    {
+      "from": "start1",
+      "to": "parallel1"
+    },
+    {
+      "from": "parallel1",
+      "to": "http1"
+    },
+    {
+      "from": "parallel1",
+      "to": "http2"
+    },
+    {
+      "from": "http1",
+      "to": "loop1"
+    },
+    {
+      "from": "http2",
+      "to": "loop1"
+    },
+    {
+      "from": "loop1",
+      "to": "textConcat1"
+    },
+    {
+      "from": "textConcat1",
+      "to": "end1"
+    }
+  ]
+}

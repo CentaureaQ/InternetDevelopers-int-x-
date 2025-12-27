@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql8-demo
+    environment:
+      - MYSQL_ROOT_PASSWORD=root123456
+      - MYSQL_DATABASE=ai_platform
+      - MYSQL_USER=demo_user
+      - MYSQL_PASSWORD=demo_pass_123
+    ports:
+      - "3306:3306"
+    command: [
+      "--default-authentication-plugin=mysql_native_password",
+      "--character-set-server=utf8mb4",
+      "--collation-server=utf8mb4_0900_ai_ci"
+    ]
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - demo_network
+    restart: unless-stopped
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin-demo
+    environment:
+      - PMA_HOST=mysql
+      - PMA_PORT=3306
+      - PMA_USER=demo_user
+      - PMA_PASSWORD=demo_pass_123
+    ports:
+      - "8081:80"
+    depends_on:
+      - mysql
+    networks:
+      - demo_network
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  demo_network:
+    driver: bridge

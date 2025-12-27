@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.sspku.agent.module.knowledge.mapper.KnowledgeBaseMapper">
+        <resultMap id="BaseResultMap" type="com.sspku.agent.module.knowledge.entity.KnowledgeBase">
+        <id column="id" property="id" />
+        <result column="uuid" property="uuid" />
+        <result column="name" property="name" />
+        <result column="description" property="description" />
+        <result column="icon" property="icon" />
+        <result column="level" property="level" />
+        <result column="parent_kb_id" property="parentKbId" />
+        <result column="vector_db_type" property="vectorDbType" />
+        <result column="embedding_model_id" property="embeddingModelId" />
+        <result column="chunk_size" property="chunkSize" />
+        <result column="chunk_overlap" property="chunkOverlap" />
+        <result column="retrieval_config" property="retrievalConfig" />
+        <result column="access_level" property="accessLevel" />
+        <result column="owner_id" property="ownerId" />
+        <result column="document_count" property="documentCount" />
+        <result column="chunk_count" property="chunkCount" />
+        <result column="total_size" property="totalSize" />
+        <result column="created_at" property="createdAt" />
+        <result column="updated_at" property="updatedAt" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, uuid, name, description, icon, level, parent_kb_id, vector_db_type, embedding_model_id,
+        chunk_size, chunk_overlap, retrieval_config, access_level, owner_id,
+        document_count, chunk_count, total_size, created_at, updated_at
+    </sql>
+
+    <sql id="Base_Column_List_With_Alias_K">
+        k.id, k.uuid, k.name, k.description, k.icon, k.level, k.parent_kb_id, k.vector_db_type, k.embedding_model_id,
+        k.chunk_size, k.chunk_overlap, k.retrieval_config, k.access_level, k.owner_id,
+        k.document_count, k.chunk_count, k.total_size, k.created_at, k.updated_at
+    </sql>
+
+    <insert id="insert" parameterType="com.sspku.agent.module.knowledge.entity.KnowledgeBase" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO knowledge_base (
+            uuid, name, description, icon, level, parent_kb_id, vector_db_type, embedding_model_id,
+            chunk_size, chunk_overlap, retrieval_config, access_level, owner_id,
+            document_count, chunk_count, total_size, created_at, updated_at
+        ) VALUES (
+            #{uuid}, #{name}, #{description}, #{icon}, #{level}, #{parentKbId}, #{vectorDbType}, #{embeddingModelId},
+            #{chunkSize}, #{chunkOverlap}, #{retrievalConfig}, #{accessLevel}, #{ownerId},
+            #{documentCount}, #{chunkCount}, #{totalSize}, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="update" parameterType="com.sspku.agent.module.knowledge.entity.KnowledgeBase">
+        UPDATE knowledge_base
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="icon != null">icon = #{icon},</if>
+            <if test="level != null">level = #{level},</if>
+            <if test="parentKbId != null">parent_kb_id = #{parentKbId},</if>
+            <if test="vectorDbType != null">vector_db_type = #{vectorDbType},</if>
+            <if test="embeddingModelId != null">embedding_model_id = #{embeddingModelId},</if>
+            <if test="chunkSize != null">chunk_size = #{chunkSize},</if>
+            <if test="chunkOverlap != null">chunk_overlap = #{chunkOverlap},</if>
+            <if test="retrievalConfig != null">retrieval_config = #{retrievalConfig},</if>
+            <if test="accessLevel != null">access_level = #{accessLevel},</if>
+            <if test="documentCount != null">document_count = #{documentCount},</if>
+            <if test="chunkCount != null">chunk_count = #{chunkCount},</if>
+            <if test="totalSize != null">total_size = #{totalSize},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById" parameterType="java.lang.Long">
+        DELETE FROM knowledge_base WHERE id = #{id}
+    </delete>
+
+    <select id="selectByUuid" parameterType="java.lang.String" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM knowledge_base
+        WHERE uuid = #{uuid}
+    </select>
+
+    <select id="selectById" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM knowledge_base
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM knowledge_base
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="selectByOwnerId" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM knowledge_base
+        WHERE owner_id = #{ownerId}
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="selectByAgentId" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List_With_Alias_K" />
+        FROM knowledge_base k
+        INNER JOIN agent_knowledge_rel akr ON k.id = akr.knowledge_base_id
+        WHERE akr.agent_id = #{agentId}
+        ORDER BY akr.created_at DESC
+    </select>
+
+    <update id="updateStats">
+        UPDATE knowledge_base
+        SET document_count = document_count + #{docCountDelta},
+            chunk_count = chunk_count + #{chunkCountDelta},
+            total_size = total_size + #{sizeDelta},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+</mapper>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sspku.agent.module.agent.mapper.UserAgentRelationMapper">
+
+    <resultMap id="UserAgentRelationMap" type="com.sspku.agent.module.agent.entity.UserAgentRelation">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="agent_id" property="agentId"/>
+        <result column="relation_type" property="relationType"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <insert id="upsertOwner">
+        INSERT INTO user_agent_rel (user_id, agent_id, relation_type)
+        VALUES (#{userId}, #{agentId}, 'owner')
+        ON DUPLICATE KEY UPDATE
+            relation_type = VALUES(relation_type),
+            updated_at = CURRENT_TIMESTAMP
+    </insert>
+
+    <select id="selectOwnerId" resultType="long">
+        SELECT user_id
+        FROM user_agent_rel
+        WHERE agent_id = #{agentId}
+          AND relation_type = 'owner'
+        LIMIT 1
+    </select>
+
+    <delete id="deleteByAgentId">
+        DELETE FROM user_agent_rel WHERE agent_id = #{agentId}
+    </delete>
+
+    <select id="selectByAgentIds" resultMap="UserAgentRelationMap">
+        SELECT id, user_id, agent_id, relation_type, created_at, updated_at
+        FROM user_agent_rel
+        <where>
+            <if test="agentIds != null and agentIds.size > 0">
+                agent_id IN
+                <foreach collection="agentIds" item="agentId" open="(" close=")" separator=",">
+                    #{agentId}
+                </foreach>
+                AND relation_type = 'owner'
+            </if>
+            <if test="agentIds == null or agentIds.size == 0">
+                1 = 0
+            </if>
+        </where>
+    </select>
+
+</mapper>

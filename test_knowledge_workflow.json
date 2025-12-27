@@ -1,0 +1,62 @@
+{
+  "nodes": [
+    {
+      "id": "start_1",
+      "type": "startNodeStart",
+      "x": 50,
+      "y": 150
+    },
+    {
+      "id": "llm_1",
+      "type": "llmNodeState",
+      "x": 300,
+      "y": 150,
+      "prompt": "请根据用户的问题生成一个简洁的查询语句：{{inputs.query}}",
+      "model": "qwen-max-latest",
+      "llmOutputKey": "searchQuery"
+    },
+    {
+      "id": "knowledge_1",
+      "type": "knowledgeRetrievalNodeState",
+      "x": 550,
+      "y": 150,
+      "queryTemplate": "{{vars.searchQuery}}",
+      "agentId": 1,
+      "knowledgeOutputKey": "knowledge"
+    },
+    {
+      "id": "llm_2",
+      "type": "llmNodeState",
+      "x": 800,
+      "y": 150,
+      "prompt": "基于以下知识回答用户的问题：\n\n知识内容：\n{{vars.knowledge}}\n\n用户问题：{{inputs.query}}",
+      "model": "qwen-max-latest",
+      "llmOutputKey": "answer"
+    },
+    {
+      "id": "end_1",
+      "type": "endNodeEnd",
+      "x": 1050,
+      "y": 150,
+      "outputKey": "result"
+    }
+  ],
+  "edges": [
+    {
+      "from": "start_1",
+      "to": "llm_1"
+    },
+    {
+      "from": "llm_1",
+      "to": "knowledge_1"
+    },
+    {
+      "from": "knowledge_1",
+      "to": "llm_2"
+    },
+    {
+      "from": "llm_2",
+      "to": "end_1"
+    }
+  ]
+}

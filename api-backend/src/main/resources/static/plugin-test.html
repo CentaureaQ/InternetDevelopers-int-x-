@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>插件系统 CRUD 测试台</title>
+    <!-- 引入 Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- 引入 Element Plus -->
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+    <!-- 引入 Element Plus 图标 -->
+    <script src="https://unpkg.com/@element-plus/icons-vue"></script>
+    <!-- 引入 Axios -->
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f5f7fa;
+        }
+        .container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            background: #fff;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+        }
+        .header h2 {
+            margin: 0;
+            color: #303133;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .plugin-card {
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+        }
+        .plugin-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+        .plugin-card.active {
+            border: 2px solid #409eff;
+        }
+        .plugin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .plugin-name {
+            font-weight: bold;
+            font-size: 16px;
+            color: #303133;
+        }
+        .plugin-desc {
+            color: #909399;
+            font-size: 13px;
+            margin-bottom: 15px;
+            height: 40px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+        .plugin-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #ebeef5;
+            padding-top: 10px;
+        }
+        .status-tag {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .json-editor {
+            width: 100%;
+            height: 300px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            padding: 10px;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+        .drawer-content {
+            padding: 0 20px;
+        }
+        .log-box {
+            background: #2c3e50;
+            color: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            height: 150px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .log-item {
+            margin: 5px 0;
+            border-bottom: 1px solid #34495e;
+            padding-bottom: 2px;
+        }
+        .log-time {
+            color: #909399;
+            margin-right: 10px;
+        }
+        .log-success { color: #67c23a; }
+        .log-error { color: #f56c6c; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="container">
+            <!-- 头部 -->
+            <div class="header">
+                <h2>
+                    <el-icon><Connection /></el-icon>
+                    插件系统测试台
+                </h2>
+                <div style="display: flex; gap: 10px;">
+                    <el-button type="primary" @click="openCreateDialog" :icon="Plus">新建插件</el-button>
+                    <el-button @click="fetchPlugins" :loading="loading" :icon="Refresh">刷新列表</el-button>
+                </div>
+            </div>
+
+            <!-- 筛选栏 -->
+            <div style="margin-bottom: 20px; display: flex; gap: 15px;">
+                <el-select v-model="filterType" placeholder="插件类型" clearable @change="fetchPlugins">
+                    <el-option label="全部类型" value=""></el-option>
+                    <el-option label="内置 (Builtin)" value="builtin"></el-option>
+                    <el-option label="自定义 (Custom)" value="custom"></el-option>
+                </el-select>
+                <el-select v-model="filterStatus" placeholder="插件状态" clearable @change="fetchPlugins">
+                    <el-option label="全部状态" value=""></el-option>
+                    <el-option label="已启用" value="enabled"></el-option>
+                    <el-option label="已禁用" value="disabled"></el-option>
+                </el-select>
+            </div>
+
+            <!-- 插件列表 -->
+            <div class="card-container" v-loading="loading">
+                <el-card 
+                    v-for="plugin in plugins" 
+                    :key="plugin.id" 
+                    class="plugin-card"
+                    :class="{ active: currentPlugin && currentPlugin.id === plugin.id }"
+                    @click="showDetail(plugin)"
+                >
+                    <div class="plugin-header">
+                        <div class="plugin-name">{{ plugin.name }}</div>
+                        <el-tag size="small" :type="plugin.type === 'builtin' ? 'warning' : 'info'">
+                            {{ plugin.type === 'builtin' ? '内置' : '自定义' }}
+                        </el-tag>
+                    </div>
+                    
+                    <div class="plugin-desc" :title="plugin.description">
+                        {{ plugin.description || '暂无描述' }}
+                    </div>
+                    
+                    <div class="plugin-footer">
+                        <div class="status-tag">
+                            <el-tag size="small" :type="plugin.status === 'enabled' ? 'success' : 'danger'" effect="dark">
+                                {{ plugin.status === 'enabled' ? '已启用' : '已禁用' }}
+                            </el-tag>
+                        </div>
+                        <div @click.stop>
+                            <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, plugin)">
+                                <el-button link type="primary" size="small">
+                                    操作 <el-icon class="el-icon--right"><Arrow-Down /></el-icon>
+                                </el-button>
+                                <template #dropdown>
+                                    <el-dropdown-menu>
+                                        <el-dropdown-item command="edit">编辑</el-dropdown-item>
+                                        <el-dropdown-item 
+                                            :command="plugin.status === 'enabled' ? 'disable' : 'enable'"
+                                        >
+                                            {{ plugin.status === 'enabled' ? '禁用' : '启用' }}
+                                        </el-dropdown-item>
+                                        <el-dropdown-item command="delete" divided style="color: #f56c6c" v-if="plugin.type !== 'builtin'">
+                                            删除
+                                        </el-dropdown-item>
+                                    </el-dropdown-menu>
+                                </template>
+                            </el-dropdown>
+                        </div>
+                    </div>
+                </el-card>
+            </div>
+
+            <!-- 详情抽屉 -->
+            <el-drawer
+                v-model="drawerVisible"
+                title="插件详情"
+                size="50%"
+            >
+                <div v-if="currentPlugin" class="drawer-content">
+                    <el-descriptions title="基本信息" :column="1" border>
+                        <el-descriptions-item label="ID">{{ currentPlugin.id }}</el-descriptions-item>
+                        <el-descriptions-item label="名称">{{ currentPlugin.name }}</el-descriptions-item>
+                        <el-descriptions-item label="类型">{{ currentPlugin.type }}</el-descriptions-item>
+                        <el-descriptions-item label="状态">{{ currentPlugin.status }}</el-descriptions-item>
+                        <el-descriptions-item label="创建时间">{{ formatTime(currentPlugin.createdAt) }}</el-descriptions-item>
+                        <el-descriptions-item label="更新时间">{{ formatTime(currentPlugin.updatedAt) }}</el-descriptions-item>
+                        <el-descriptions-item label="描述">{{ currentPlugin.description }}</el-descriptions-item>
+                    </el-descriptions>
+
+                    <h4 style="margin-top: 20px;">OpenAPI Spec</h4>
+                    <pre style="background: #f5f7fa; padding: 10px; border-radius: 4px; overflow: auto; max-height: 300px;">{{ tryParseJson(currentPlugin.openapiSpec) }}</pre>
+
+                    <h4 style="margin-top: 20px;">配置信息 (Config)</h4>
+                    <pre style="background: #f5f7fa; padding: 10px; border-radius: 4px; overflow: auto; max-height: 200px;">{{ tryParseJson(currentPlugin.config) }}</pre>
+
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e4e7ed;">
+                        <h4>🎯 测试执行插件</h4>
+                        <el-form label-width="100px" style="margin-top: 15px;">
+                            <el-form-item label="函数名称">
+                                <el-input v-model="executeForm.functionName" placeholder="如: extract, compare"></el-input>
+                            </el-form-item>
+                            <el-form-item label="参数 (JSON)">
+                                <el-input 
+                                    v-model="executeForm.arguments" 
+                                    type="textarea" 
+                                    rows="4" 
+                                    placeholder='{"key": "value"}'
+                                ></el-input>
+                            </el-form-item>
+                            <el-form-item>
+                                <el-button type="primary" @click="testExecute" :loading="executing">执行</el-button>
+                                <el-button @click="clearExecuteResult">清空结果</el-button>
+                            </el-form-item>
+                        </el-form>
+
+                        <div v-if="executeResult" style="margin-top: 20px;">
+                            <h5>执行结果:</h5>
+                            <pre style="background: #f0f9ff; padding: 15px; border-radius: 4px; border: 1px solid #91d5ff; overflow: auto; max-height: 300px;">{{ executeResult }}</pre>
+                        </div>
+                    </div>
+                </div>
+            </el-drawer>
+
+            <!-- 编辑/新建对话框 -->
+            <el-dialog
+                v-model="dialogVisible"
+                :title="isEdit ? '编辑插件' : '新建插件'"
+                width="60%"
+            >
+                <el-form :model="form" label-width="100px">
+                    <el-form-item label="插件名称" required>
+                        <el-input v-model="form.name" placeholder="请输入插件名称"></el-input>
+                    </el-form-item>
+                    <el-form-item label="描述">
+                        <el-input v-model="form.description" type="textarea" rows="2"></el-input>
+                    </el-form-item>
+                    <el-form-item label="OpenAPI" required>
+                        <el-input 
+                            v-model="form.openapiSpec" 
+                            type="textarea" 
+                            rows="10" 
+                            placeholder="请输入OpenAPI JSON规范"
+                            class="code-input"
+                        ></el-input>
+                        <el-button link type="primary" size="small" @click="formatJson('openapiSpec')">格式化 JSON</el-button>
+                    </el-form-item>
+                    <el-form-item label="配置信息">
+                        <el-input 
+                            v-model="form.config" 
+                            type="textarea" 
+                            rows="4" 
+                            placeholder="请输入配置 JSON"
+                            class="code-input"
+                        ></el-input>
+                        <el-button link type="primary" size="small" @click="formatJson('config')">格式化 JSON</el-button>
+                    </el-form-item>
+                </el-form>
+                <template #footer>
+                    <span class="dialog-footer">
+                        <el-button @click="dialogVisible = false">取消</el-button>
+                        <el-button type="primary" @click="submitForm" :loading="submitting">
+                            确定
+                        </el-button>
+                    </span>
+                </template>
+            </el-dialog>
+
+            <!-- 操作日志 -->
+            <div class="log-box">
+                <div style="position: sticky; top: 0; background: #2c3e50; border-bottom: 1px solid #34495e; padding-bottom: 5px; font-weight: bold;">
+                    📝 操作日志
+                </div>
+                <div v-for="(log, index) in logs" :key="index" class="log-item">
+                    <span class="log-time">[{{ log.time }}]</span>
+                    <span :class="log.type === 'error' ? 'log-error' : 'log-success'">
+                        {{ log.message }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, onMounted } = Vue;
+        const { ElMessage, ElMessageBox } = ElementPlus;
+        const { Plus, Refresh, Connection, ArrowDown } = ElementPlusIconsVue;
+
+        const app = createApp({
+            setup() {
+                const loading = ref(false);
+                const plugins = ref([]);
+                const currentPlugin = ref(null);
+                const drawerVisible = ref(false);
+                const dialogVisible = ref(false);
+                const isEdit = ref(false);
+                const submitting = ref(false);
+                const logs = ref([]);
+                const executing = ref(false);
+                const executeResult = ref('');
+                
+                const filterType = ref('');
+                const filterStatus = ref('');
+
+                // 默认 API 前缀
+                // 如果是独立 HTML 打开，请修改此处为完整的后端地址，如 'http://localhost:8080/api/plugin'
+                const API_BASE = '/api/plugin'; 
+
+                const form = reactive({
+                    id: null,
+                    name: '',
+                    description: '',
+                    openapiSpec: '',
+                    config: '{}'
+                });
+
+                const executeForm = reactive({
+                    functionName: '',
+                    arguments: '{}'
+                });
+
+                const addLog = (message, type = 'info') => {
+                    const time = new Date().toLocaleTimeString();
+                    logs.value.unshift({ time, message, type });
+                };
+
+                const fetchPlugins = async () => {
+                    loading.value = true;
+                    try {
+                        const params = {};
+                        if (filterType.value) params.type = filterType.value;
+                        if (filterStatus.value) params.status = filterStatus.value;
+                        
+                        const res = await axios.get(API_BASE, { params });
+                        if (res.data.code === 0) {
+                            plugins.value = res.data.data;
+                            addLog(`成功加载 ${plugins.value.length} 个插件`, 'success');
+                        } else {
+                            throw new Error(res.data.message);
+                        }
+                    } catch (error) {
+                        ElMessage.error('加载失败: ' + error.message);
+                        addLog(`加载失败: ${error.message}`, 'error');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const showDetail = (plugin) => {
+                    currentPlugin.value = plugin;
+                    drawerVisible.value = true;
+                };
+
+                const openCreateDialog = () => {
+                    isEdit.value = false;
+                    form.id = null;
+                    form.name = '';
+                    form.description = '';
+                    form.openapiSpec = JSON.stringify({
+                        openapi: "3.0.0",
+                        info: { title: "示例插件", version: "1.0.0" },
+                        paths: {}
+                    }, null, 2);
+                    form.config = '{}';
+                    dialogVisible.value = true;
+                };
+
+                const handleCommand = (cmd, plugin) => {
+                    if (cmd === 'edit') {
+                        isEdit.value = true;
+                        form.id = plugin.id;
+                        form.name = plugin.name;
+                        form.description = plugin.description;
+                        form.openapiSpec = tryParseJson(plugin.openapiSpec);
+                        form.config = tryParseJson(plugin.config);
+                        dialogVisible.value = true;
+                    } else if (cmd === 'delete') {
+                        ElMessageBox.confirm(
+                            `确定要删除插件 "${plugin.name}" 吗？`,
+                            '警告',
+                            { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+                        ).then(async () => {
+                            try {
+                                const res = await axios.delete(`${API_BASE}/${plugin.id}`);
+                                if (res.data.code === 0) {
+                                    ElMessage.success('删除成功');
+                                    addLog(`删除插件 ${plugin.name} 成功`, 'success');
+                                    fetchPlugins();
+                                }
+                            } catch (error) {
+                                ElMessage.error('删除失败');
+                                addLog(`删除插件失败: ${error.message}`, 'error');
+                            }
+                        });
+                    } else if (cmd === 'enable') {
+                        toggleStatus(plugin, 'enable');
+                    } else if (cmd === 'disable') {
+                        toggleStatus(plugin, 'disable');
+                    }
+                };
+
+                const toggleStatus = async (plugin, action) => {
+                    try {
+                        const res = await axios.post(`${API_BASE}/${plugin.id}/${action}`);
+                        if (res.data.code === 0) {
+                            ElMessage.success(`${action === 'enable' ? '启用' : '禁用'}成功`);
+                            addLog(`${action === 'enable' ? '启用' : '禁用'}插件 ${plugin.name} 成功`, 'success');
+                            fetchPlugins();
+                        }
+                    } catch (error) {
+                        ElMessage.error('操作失败');
+                        addLog(`操作失败: ${error.message}`, 'error');
+                    }
+                };
+
+                const submitForm = async () => {
+                    if (!form.name || !form.openapiSpec) {
+                        ElMessage.warning('请填写必填项');
+                        return;
+                    }
+                    
+                    // 验证JSON
+                    try {
+                        JSON.parse(form.openapiSpec);
+                        JSON.parse(form.config || '{}');
+                    } catch (e) {
+                        ElMessage.error('JSON格式错误');
+                        return;
+                    }
+
+                    submitting.value = true;
+                    try {
+                        if (isEdit.value) {
+                            const res = await axios.put(`${API_BASE}/${form.id}`, form);
+                            if (res.data.code === 0) {
+                                ElMessage.success('更新成功');
+                                addLog(`更新插件 ${form.name} 成功`, 'success');
+                            }
+                        } else {
+                            const res = await axios.post(API_BASE, form);
+                            if (res.data.code === 0) {
+                                ElMessage.success('创建成功');
+                                addLog(`创建插件 ${form.name} 成功`, 'success');
+                            }
+                        }
+                        dialogVisible.value = false;
+                        fetchPlugins();
+                    } catch (error) {
+                        ElMessage.error('提交失败: ' + (error.response?.data?.message || error.message));
+                        addLog(`提交失败: ${error.message}`, 'error');
+                    } finally {
+                        submitting.value = false;
+                    }
+                };
+
+                const tryParseJson = (str) => {
+                    try {
+                        // 如果已经是对象，直接格式化
+                        if (typeof str === 'object') return JSON.stringify(str, null, 2);
+                        // 如果是字符串，先解析再格式化
+                        return JSON.stringify(JSON.parse(str), null, 2);
+                    } catch (e) {
+                        return str;
+                    }
+                };
+
+                const formatJson = (field) => {
+                    try {
+                        const obj = JSON.parse(form[field]);
+                        form[field] = JSON.stringify(obj, null, 2);
+                    } catch (e) {
+                        ElMessage.error('JSON格式错误，无法格式化');
+                    }
+                };
+
+                const formatTime = (timeStr) => {
+                    if (!timeStr) return '-';
+                    return new Date(timeStr).toLocaleString();
+                };
+
+                const testExecute = async () => {
+                    if (!executeForm.functionName) {
+                        ElMessage.warning('请输入函数名称');
+                        return;
+                    }
+
+                    let args = {};
+                    try {
+                        args = JSON.parse(executeForm.arguments || '{}');
+                    } catch (e) {
+                        ElMessage.error('参数JSON格式错误');
+                        return;
+                    }
+
+                    executing.value = true;
+                    executeResult.value = '';
+
+                    try {
+                        const res = await axios.post(`${API_BASE}/${currentPlugin.value.id}/execute`, {
+                            functionName: executeForm.functionName,
+                            arguments: args
+                        });
+
+                        if (res.data.code === 0) {
+                            executeResult.value = JSON.stringify(res.data.data, null, 2);
+                            addLog(`执行成功: ${executeForm.functionName}`, 'success');
+                            ElMessage.success('执行成功');
+                        } else {
+                            throw new Error(res.data.message);
+                        }
+                    } catch (error) {
+                        const errMsg = error.response?.data?.message || error.message;
+                        executeResult.value = `❌ 执行失败:\n${errMsg}`;
+                        addLog(`执行失败: ${errMsg}`, 'error');
+                        ElMessage.error('执行失败');
+                    } finally {
+                        executing.value = false;
+                    }
+                };
+
+                const clearExecuteResult = () => {
+                    executeForm.functionName = '';
+                    executeForm.arguments = '{}';
+                    executeResult.value = '';
+                };
+
+                onMounted(() => {
+                    fetchPlugins();
+                });
+
+                return {
+                    loading,
+                    plugins,
+                    currentPlugin,
+                    drawerVisible,
+                    dialogVisible,
+                    isEdit,
+                    form,
+                    submitting,
+                    logs,
+                    filterType,
+                    filterStatus,
+                    executeForm,
+                    executing,
+                    executeResult,
+                    Plus, Refresh, Connection, ArrowDown,
+                    fetchPlugins,
+                    showDetail,
+                    openCreateDialog,
+                    handleCommand,
+                    submitForm,
+                    tryParseJson,
+                    formatJson,
+                    formatTime,
+                    testExecute,
+                    clearExecuteResult
+                };
+            }
+        });
+
+        for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+            app.component(key, component);
+        }
+
+        app.use(ElementPlus);
+        app.mount('#app');
+    </script>
+</body>
+</html>
+

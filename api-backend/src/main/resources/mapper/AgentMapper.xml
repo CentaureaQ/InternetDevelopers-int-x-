@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sspku.agent.module.agent.mapper.AgentMapper">
+
+    <resultMap id="AgentResultMap" type="com.sspku.agent.module.agent.entity.Agent">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="description" property="description"/>
+        <result column="system_prompt" property="systemPrompt"/>
+        <result column="user_prompt_template" property="userPromptTemplate"/>
+        <result column="model_config" property="modelConfig"/>
+        <result column="rag_config" property="ragConfig"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO agent
+        (name, description, system_prompt, user_prompt_template, model_config, rag_config,
+         status)
+        VALUES
+        (#{name}, #{description}, #{systemPrompt}, #{userPromptTemplate}, #{modelConfig}, #{ragConfig},
+         #{status})
+    </insert>
+
+    <update id="update">
+        UPDATE agent
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="systemPrompt != null">system_prompt = #{systemPrompt},</if>
+            <if test="userPromptTemplate != null">user_prompt_template = #{userPromptTemplate},</if>
+            <if test="modelConfig != null">model_config = #{modelConfig},</if>
+            <if test="ragConfig != null">rag_config = #{ragConfig},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE agent
+        SET status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM agent WHERE id = #{id}
+    </delete>
+
+    <select id="selectById" resultMap="AgentResultMap">
+        SELECT * FROM agent WHERE id = #{id}
+    </select>
+
+    <select id="countByCondition" resultType="long">
+        SELECT COUNT(1)
+        FROM agent
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (name LIKE CONCAT('%', #{keyword}, '%')
+                OR description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectPageByCondition" resultMap="AgentResultMap">
+        SELECT *
+        FROM agent
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (name LIKE CONCAT('%', #{keyword}, '%')
+                OR description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+        ORDER BY updated_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+</mapper>
+

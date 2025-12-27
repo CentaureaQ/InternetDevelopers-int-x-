@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sspku.agent.module.plugin.mapper.PluginMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="com.sspku.agent.module.plugin.entity.Plugin">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="description" property="description"/>
+        <result column="type" property="type"/>
+        <result column="openapi_spec" property="openapiSpec"/>
+        <result column="config" property="config"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- 基础查询列 -->
+    <sql id="Base_Column_List">
+        id, name, description, type, openapi_spec, config, status, 
+        created_at, updated_at
+    </sql>
+
+    <!-- 根据ID查询插件 -->
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM plugin
+        WHERE id = #{id}
+    </select>
+
+    <!-- 根据名称查询插件 -->
+    <select id="selectByName" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM plugin
+        WHERE name = #{name}
+    </select>
+
+    <!-- 查询所有插件（包括已删除） -->
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM plugin
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 查询未删除的插件列表 -->
+    <select id="selectAllActive" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM plugin
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 根据类型查询插件 -->
+    <select id="selectByType" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM plugin
+        WHERE type = #{type}
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 根据状态查询插件 -->
+    <select id="selectByStatus" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM plugin
+        WHERE status = #{status}
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 查询启用的插件 -->
+    <select id="selectEnabledPlugins" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM plugin
+        WHERE status = 'enabled'
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 插入新插件 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO plugin (
+            name, description, type, openapi_spec, config, status
+        ) VALUES (
+            #{name}, #{description}, #{type}, #{openapiSpec}, #{config}, #{status}
+        )
+    </insert>
+
+    <!-- 更新插件信息 -->
+    <update id="updateById">
+        UPDATE plugin
+        <set>
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="type != null and type != ''">type = #{type},</if>
+            <if test="openapiSpec != null">openapi_spec = #{openapiSpec},</if>
+            <if test="config != null">config = #{config},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 更新插件状态 -->
+    <update id="updateStatus">
+        UPDATE plugin
+        SET status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除插件（物理删除，触发级联） -->
+    <delete id="deleteById">
+        DELETE FROM plugin
+        WHERE id = #{id}
+    </delete>
+
+    <!-- 统计插件数量 -->
+    <select id="countActive" resultType="int">
+        SELECT COUNT(*)
+        FROM plugin
+    </select>
+
+    <!-- 检查插件名称是否存在 -->
+    <select id="existsByName" resultType="boolean">
+        SELECT COUNT(*) > 0
+        FROM plugin
+        WHERE name = #{name}
+    </select>
+
+</mapper>
+
