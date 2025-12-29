@@ -251,6 +251,12 @@
                 </div>
                 <div v-else-if="node.type === 'knowledgeRetrievalNodeState'" class="node-summary">
                   <div class="node-summary-line">Query：{{ node.queryTemplate || '未设置' }}</div>
+                  <div class="node-summary-line" v-if="node.knowledgeBaseId">
+                    知识库：{{ availableKnowledgeBases.find(kb => kb.id === node.knowledgeBaseId)?.name || `ID: ${node.knowledgeBaseId}` }}
+                  </div>
+                  <div class="node-summary-line" v-else-if="node.agentId">
+                    Agent：{{ availableAgents.find(a => a.id === node.agentId)?.name || `ID: ${node.agentId}` }}
+                  </div>
                   <div class="node-summary-line">输出：{{ node.knowledgeOutputKey || 'knowledge' }}</div>
                 </div>
                 <div v-else-if="node.type === 'variableUpdaterNodeState'" class="node-summary">
@@ -614,8 +620,24 @@
                   <el-input v-model="selectedNode.queryTemplate" type="textarea" :rows="2" placeholder="&lbrace;&lbrace;inputs.query&rbrace;&rbrace; 或 &lbrace;&lbrace;vars.text&rbrace;&rbrace;" />
                     <div class="form-hint">支持使用 <code>&lbrace;&lbrace;inputs.xxx&rbrace;&rbrace;</code> 或 <code>&lbrace;&lbrace;vars.xxx&rbrace;&rbrace;</code> 引用变量</div>
                 </el-form-item>
-                <el-form-item label="选择 Agent">
-                  <el-select v-model="selectedNode.agentId" placeholder="请选择 Agent" style="width: 100%" clearable filterable>
+                <el-form-item label="选择知识库（优先）">
+                  <el-select v-model="selectedNode.knowledgeBaseId" placeholder="请选择知识库（推荐）" style="width: 100%" clearable filterable>
+                    <el-option
+                      v-for="kb in availableKnowledgeBases"
+                      :key="kb.id"
+                      :label="`${kb.name} (ID: ${kb.id})`"
+                      :value="kb.id"
+                    >
+                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>{{ kb.name }}</span>
+                        <span style="color: var(--text-secondary); font-size: 12px;">ID: {{ kb.id }}</span>
+                      </div>
+                    </el-option>
+                  </el-select>
+                  <div class="form-hint">直接选择知识库（推荐），无需创建中间智能体</div>
+                </el-form-item>
+                <el-form-item label="选择 Agent（备选）">
+                  <el-select v-model="selectedNode.agentId" placeholder="请选择 Agent（如果未选择知识库）" style="width: 100%" clearable filterable>
                     <el-option
                       v-for="agent in availableAgents"
                       :key="agent.id"
@@ -628,7 +650,7 @@
                       </div>
                     </el-option>
                   </el-select>
-                  <div class="form-hint">选择要使用的 Agent，系统会自动使用该 Agent 关联的知识库</div>
+                  <div class="form-hint">如果未选择知识库，则使用该 Agent 关联的知识库（向后兼容）</div>
                 </el-form-item>
                 <el-form-item label="输出字段名 (knowledgeOutputKey)">
                   <el-input v-model="selectedNode.knowledgeOutputKey" placeholder="knowledge" />
@@ -2081,6 +2103,7 @@ interface CanvasNode {
   // knowledgeRetrieval
   queryTemplate?: string
   agentId?: number
+  knowledgeBaseId?: number  // 直接指定知识库ID（优先使用）
   knowledgeOutputKey?: string
 
   // textConcatenation / variableAggregation
@@ -3299,6 +3322,7 @@ function buildGraphString() {
       if (n.type === 'knowledgeRetrievalNodeState') {
         base.queryTemplate = n.queryTemplate
         base.agentId = n.agentId
+        base.knowledgeBaseId = n.knowledgeBaseId
         base.knowledgeOutputKey = n.knowledgeOutputKey || 'knowledge'
       }
       if (n.type === 'textConcatenationNodeState' || n.type === 'variableAggregationNodeState') {
@@ -3432,6 +3456,7 @@ function applyGraphString(graphText: string) {
         if (type === 'knowledgeRetrievalNodeState') {
           node.queryTemplate = n.queryTemplate || '{{inputs.query}}'
           node.agentId = n.agentId
+          node.knowledgeBaseId = n.knowledgeBaseId
           node.knowledgeOutputKey = n.knowledgeOutputKey || 'knowledge'
         }
         if (type === 'textConcatenationNodeState' || type === 'variableAggregationNodeState') {

@@ -681,7 +681,17 @@ public class WorkflowServiceImpl implements WorkflowService {
             
             String query = renderTemplate(queryTemplate, inputs, vars);
 
+            String outputKey = StringUtils.hasText(node.getKnowledgeOutputKey()) ? node.getKnowledgeOutputKey()
+                    : "knowledge";
+
+            String knowledgeText = "";
+            List<KnowledgeChunk> chunks = null;
+            
+            // 方案C：优先使用 knowledgeBaseId，其次使用 agentId
+            Long knowledgeBaseId = node.getKnowledgeBaseId();
             Long agentId = node.getAgentId();
+            
+            // 如果节点没有直接指定 agentId，尝试从 inputs 中获取
             if (agentId == null) {
                 String agentIdKey = StringUtils.hasText(node.getAgentIdKey()) ? node.getAgentIdKey() : "agentId";
                 Object agentIdRaw = inputs.get(agentIdKey);
@@ -694,13 +704,26 @@ public class WorkflowServiceImpl implements WorkflowService {
                     }
                 }
             }
-
-            String outputKey = StringUtils.hasText(node.getKnowledgeOutputKey()) ? node.getKnowledgeOutputKey()
-                    : "knowledge";
-
-            String knowledgeText = "";
-            if (agentId != null && StringUtils.hasText(query)) {
-                List<KnowledgeChunk> chunks = ragService.retrieve(agentId, query);
+            
+            // 使用默认 RAG 配置
+            RagConfig ragConfig = new RagConfig();
+            ragConfig.setTopK(6);
+            ragConfig.setThreshold(0.2);
+            ragConfig.setMaxContextLength(1000);
+            
+            if (StringUtils.hasText(query)) {
+                if (knowledgeBaseId != null) {
+                    // 优先级1：直接使用知识库ID
+                    log.debug("知识检索节点 {} 使用知识库ID: {}", node.getId(), knowledgeBaseId);
+                    chunks = ragService.retrieveByKnowledgeBase(knowledgeBaseId, query, ragConfig);
+                } else if (agentId != null) {
+                    // 优先级2：通过智能体ID查找关联的知识库
+                    log.debug("知识检索节点 {} 使用智能体ID: {}", node.getId(), agentId);
+                    chunks = ragService.retrieve(agentId, query, ragConfig);
+                } else {
+                    log.warn("知识检索节点 {} 未指定知识库ID或智能体ID", node.getId());
+                }
+                
                 if (chunks != null && !chunks.isEmpty()) {
                     knowledgeText = chunks.stream()
                             .filter(Objects::nonNull)
@@ -713,13 +736,24 @@ public class WorkflowServiceImpl implements WorkflowService {
 
             long finished = Instant.now().toEpochMilli();
             Map<String, Object> out = Map.of(outputKey, knowledgeText);
+            
+            // 构建输入信息（包含使用的知识库ID或智能体ID）
+            Map<String, Object> inputInfo = new HashMap<>();
+            inputInfo.put("query", query);
+            if (knowledgeBaseId != null) {
+                inputInfo.put("knowledgeBaseId", knowledgeBaseId);
+            }
+            if (agentId != null) {
+                inputInfo.put("agentId", agentId);
+            }
+            
             return WorkflowTraceEvent.builder()
                     .nodeId(node.getId())
                     .nodeType(node.getType())
                     .status("success")
                     .startedAt(started)
                     .finishedAt(finished)
-                    .input(Map.of("query", query, "agentId", agentId))
+                    .input(inputInfo)
                     .output(out)
                     .build();
         } catch (Exception e) {

@@ -48,4 +48,13 @@ public interface RagService {
      * @return RagConfig
      */
     RagConfig getRagConfig(Long agentId);
+    
+    /**
+     * Retrieve relevant chunks for a query directly from a knowledge base.
+     * @param knowledgeBaseId Knowledge Base ID
+     * @param query User query
+     * @param config RAG configuration
+     * @return List of relevant knowledge chunks
+     */
+    List<KnowledgeChunk> retrieveByKnowledgeBase(Long knowledgeBaseId, String query, RagConfig config);
 }

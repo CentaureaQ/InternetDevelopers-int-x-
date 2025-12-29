@@ -50,6 +50,7 @@ public class WorkflowNode {
     private String queryTemplate;
     private Long agentId;
     private String agentIdKey;
+    private Long knowledgeBaseId;  // 直接指定知识库ID（优先使用）
     private String knowledgeOutputKey;
 
     // textConcatenation / variableAggregation

@@ -190,4 +190,93 @@ public class RagServiceImpl implements RagService {
                 %s
                 """, context, query);
     }
+
+    @Override
+    public List<KnowledgeChunk> retrieveByKnowledgeBase(Long knowledgeBaseId, String query, RagConfig config) {
+        log.info("RAG Retrieve started for knowledge base {} with query: {}", knowledgeBaseId, query);
+        if (!StrUtil.isNotBlank(query)) {
+            log.warn("Query is blank, returning empty results");
+            return Collections.emptyList();
+        }
+        if (config == null) {
+            // 使用默认配置
+            config = new RagConfig();
+        }
+        log.info("RAG Config: {}", JSONUtil.toJsonStr(config));
+        
+        // 1. 验证知识库存在
+        KnowledgeBase kb = knowledgeBaseMapper.selectById(knowledgeBaseId);
+        if (kb == null) {
+            log.warn("Knowledge Base {} not found", knowledgeBaseId);
+            return Collections.emptyList();
+        }
+        log.info("Found Knowledge Base: {}", kb.getName());
+
+        // 2. Embed Query
+        List<Float> queryVector = embeddingService.embedQuery(query);
+        if (queryVector == null || queryVector.isEmpty()) {
+            log.error("Failed to embed query, vector is null or empty");
+            return Collections.emptyList();
+        }
+        log.info("Query embedded, vector size: {}", queryVector.size());
+
+        // 3. Search in Vector DB
+        List<SearchResult> results;
+        try {
+            log.info("Searching in KB: {}", knowledgeBaseId);
+            results = vectorStorageService.search(
+                    knowledgeBaseId, 
+                    queryVector, 
+                    config.getTopK(), 
+                    config.getThreshold()
+            );
+            if (results == null) {
+                log.warn("KB {} returned null results", knowledgeBaseId);
+                return Collections.emptyList();
+            }
+            log.info("KB {} returned {} results", knowledgeBaseId, results.size());
+        } catch (Exception e) {
+            log.warn("Failed to search KB {}", knowledgeBaseId, e);
+            return Collections.emptyList();
+        }
+
+        // 4. Sort and Limit
+        results.sort(Comparator.comparingDouble(SearchResult::getScore).reversed());
+        log.info("Total results found: {}", results.size());
+        
+        if (results.size() > config.getTopK()) {
+            results = results.subList(0, config.getTopK());
+        }
+
+        // 5. Fetch Content from DB
+        if (CollUtil.isEmpty(results)) {
+            log.info("No results after filtering");
+            return Collections.emptyList();
+        }
+
+        List<Long> chunkIds = results.stream()
+                .map(SearchResult::getChunkId)
+                .collect(Collectors.toList());
+        
+        List<KnowledgeChunk> chunks = chunkMapper.selectByIds(chunkIds);
+        if (chunks == null) {
+            log.error("chunkMapper.selectByIds returned null");
+            return Collections.emptyList();
+        }
+        log.info("Retrieved {} chunks from DB", chunks.size());
+        
+        // Map chunks to results to preserve order and score
+        Map<Long, KnowledgeChunk> chunkMap = chunks.stream()
+                .collect(Collectors.toMap(KnowledgeChunk::getId, c -> c));
+        
+        List<KnowledgeChunk> sortedChunks = new ArrayList<>();
+        for (SearchResult result : results) {
+            KnowledgeChunk chunk = chunkMap.get(result.getChunkId());
+            if (chunk != null) {
+                sortedChunks.add(chunk);
+            }
+        }
+        
+        return sortedChunks;
+    }
 }
