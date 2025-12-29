@@ -21,6 +21,21 @@
       </div>
       <div class="header-right">
         <el-button @click="save" :loading="isSaving">保存</el-button>
+        <el-button 
+          v-if="isEdit && workflowStatus === 'published'"
+          @click="handleUnpublish"
+          :loading="isPublishing"
+        >
+          取消发布
+        </el-button>
+        <el-button 
+          v-else-if="isEdit"
+          type="success"
+          @click="handlePublish"
+          :loading="isPublishing"
+        >
+          发布
+        </el-button>
         <el-button type="primary" @click="openDebugPanel" :disabled="!isEdit">调试</el-button>
       </div>
     </div>
@@ -520,7 +535,17 @@
                     </el-collapse-item>
                   </el-collapse>
                 </div>
-                <el-form-item label="Prompt">
+                <el-form-item label="System Prompt (系统提示词)">
+                  <el-input
+                    v-model="selectedNode.systemPrompt"
+                    type="textarea"
+                    :rows="4"
+                    resize="none"
+                    placeholder="例如：你是一个专业的AI助手，擅长回答问题。"
+                  />
+                  <div class="form-hint">可选。定义AI的角色和行为，支持使用 <code>&lbrace;&lbrace;inputs.xxx&rbrace;&rbrace;</code> 和 <code>&lbrace;&lbrace;vars.xxx&rbrace;&rbrace;</code> 引用变量</div>
+                </el-form-item>
+                <el-form-item label="Prompt (用户提示词)">
                   <el-input
                     v-model="selectedNode.prompt"
                     type="textarea"
@@ -1756,6 +1781,8 @@ import {
   updateWorkflow,
   getWorkflow,
   debugWorkflow,
+  publishWorkflow,
+  unpublishWorkflow,
   type WorkflowVO
 } from '@/api/workflow'
 import { listPlugins, type Plugin } from '@/api/plugin'
@@ -1769,6 +1796,8 @@ const route = useRoute()
 const loading = ref(false)
 const isSaving = ref(false)
 const isRunning = ref(false)
+const isPublishing = ref(false)
+const workflowStatus = ref<'draft' | 'published'>('draft')
 
 const inspectorMode = ref<'node' | 'debug'>('node')
 
@@ -3257,6 +3286,7 @@ function buildGraphString() {
       }
       if (n.type === 'llmNodeState') {
         base.llmAgentId = n.llmAgentId
+        base.systemPrompt = n.systemPrompt
         base.prompt = n.prompt
         base.llmOutputKey = n.llmOutputKey || 'llmOutput'
         base.pluginIds = n.pluginIds
@@ -3264,6 +3294,7 @@ function buildGraphString() {
         base.modelName = n.modelName
         base.modelTemperature = n.modelTemperature
         base.modelMaxTokens = n.modelMaxTokens
+        base.modelTopP = n.modelTopP
       }
       if (n.type === 'knowledgeRetrievalNodeState') {
         base.queryTemplate = n.queryTemplate
@@ -3388,9 +3419,15 @@ function applyGraphString(graphText: string) {
         const node: CanvasNode = { id: n.id, type, x, y }
         if (type === 'llmNodeState') {
           node.llmAgentId = n.llmAgentId
+          node.systemPrompt = n.systemPrompt
           node.prompt = n.prompt || '请结合知识回答：\n\n{{vars.knowledge}}\n\n问题：{{inputs.query}}'
           node.llmOutputKey = n.llmOutputKey || 'llmOutput'
           node.pluginIds = n.pluginIds || []
+          node.modelProvider = n.modelProvider
+          node.modelName = n.modelName
+          node.modelTemperature = n.modelTemperature
+          node.modelMaxTokens = n.modelMaxTokens
+          node.modelTopP = n.modelTopP
         }
         if (type === 'knowledgeRetrievalNodeState') {
           node.queryTemplate = n.queryTemplate || '{{inputs.query}}'
@@ -3538,6 +3575,7 @@ async function loadWorkflow() {
     form.value.name = data.name
     form.value.description = data.description || ''
     form.value.graph = data.graph || ''
+    workflowStatus.value = data.status || 'draft'
     applyGraphString(form.value.graph)
   } catch (error) {
     console.error('加载工作流失败', error)
@@ -3587,6 +3625,68 @@ async function save() {
     ElMessage.error('保存失败')
   } finally {
     isSaving.value = false
+  }
+}
+
+async function handlePublish() {
+  if (!workflowId.value) return
+  
+  // 先保存工作流
+  if (!form.value.name.trim()) {
+    ElMessage.warning('请先填写工作流名称并保存')
+    return
+  }
+  
+  if (nodes.value.length === 0) {
+    ElMessage.warning('请先在画布中添加节点')
+    return
+  }
+  
+  if (!hasStart.value || !hasEnd.value) {
+    ElMessage.warning('流程至少需要开始节点和结束节点')
+    return
+  }
+  
+  // 确保已保存最新内容
+  form.value.graph = buildGraphString()
+  try {
+    await updateWorkflow(workflowId.value, {
+      name: form.value.name,
+      description: form.value.description,
+      graph: form.value.graph
+    })
+  } catch (error) {
+    console.error('保存失败', error)
+    ElMessage.error('保存失败，无法发布')
+    return
+  }
+  
+  isPublishing.value = true
+  try {
+    await publishWorkflow(workflowId.value)
+    workflowStatus.value = 'published'
+    ElMessage.success('发布成功')
+  } catch (error) {
+    console.error('发布失败', error)
+    ElMessage.error('发布失败')
+  } finally {
+    isPublishing.value = false
+  }
+}
+
+async function handleUnpublish() {
+  if (!workflowId.value) return
+  
+  isPublishing.value = true
+  try {
+    await unpublishWorkflow(workflowId.value)
+    workflowStatus.value = 'draft'
+    ElMessage.success('取消发布成功')
+  } catch (error) {
+    console.error('取消发布失败', error)
+    ElMessage.error('取消发布失败')
+  } finally {
+    isPublishing.value = false
   }
 }
 

@@ -46,6 +46,10 @@
         SELECT * FROM workflow WHERE id = #{id} AND owner_user_id = #{ownerUserId}
     </select>
 
+    <select id="selectById" resultMap="WorkflowResultMap">
+        SELECT * FROM workflow WHERE id = #{id}
+    </select>
+
     <select id="countByCondition" resultType="long">
         SELECT COUNT(1)
         FROM workflow

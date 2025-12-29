@@ -11,6 +11,7 @@
         <result column="user_prompt_template" property="userPromptTemplate"/>
         <result column="model_config" property="modelConfig"/>
         <result column="rag_config" property="ragConfig"/>
+        <result column="workflow_id" property="workflowId"/>
         <result column="status" property="status"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
@@ -18,10 +19,10 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO agent
-        (name, description, system_prompt, user_prompt_template, model_config, rag_config,
+        (name, description, system_prompt, user_prompt_template, model_config, rag_config, workflow_id,
          status)
         VALUES
-        (#{name}, #{description}, #{systemPrompt}, #{userPromptTemplate}, #{modelConfig}, #{ragConfig},
+        (#{name}, #{description}, #{systemPrompt}, #{userPromptTemplate}, #{modelConfig}, #{ragConfig}, #{workflowId},
          #{status})
     </insert>
 
@@ -34,6 +35,8 @@
             <if test="userPromptTemplate != null">user_prompt_template = #{userPromptTemplate},</if>
             <if test="modelConfig != null">model_config = #{modelConfig},</if>
             <if test="ragConfig != null">rag_config = #{ragConfig},</if>
+            <if test="workflowId != null">workflow_id = #{workflowId},</if>
+            <if test="workflowId == null and id != null">workflow_id = NULL,</if>
             <if test="status != null">status = #{status},</if>
         </set>
         WHERE id = #{id}

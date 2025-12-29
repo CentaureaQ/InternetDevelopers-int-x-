@@ -24,6 +24,7 @@ export interface AgentCreateRequest {
   pluginIds?: number[]
   ownerUserId?: number
   knowledgeBaseId?: number
+  workflowId?: number
   ragConfig?: RagConfig
 }
 
@@ -35,6 +36,7 @@ export interface AgentUpdateRequest {
   modelConfig?: ModelConfig
   pluginIds?: number[]
   knowledgeBaseId?: number
+  workflowId?: number
   ragConfig?: RagConfig
 }
 
@@ -58,6 +60,7 @@ export interface AgentVO {
   createdAt: string
   updatedAt: string
   knowledgeBaseId?: number
+  workflowId?: number
   ragConfig?: RagConfig
 }
 

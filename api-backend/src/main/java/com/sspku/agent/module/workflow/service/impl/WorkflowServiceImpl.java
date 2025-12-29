@@ -24,12 +24,16 @@ import com.sspku.agent.module.knowledge.service.RagService;
 import com.sspku.agent.module.agent.tool.PluginToolFactory;
 import com.sspku.agent.module.agent.service.AgentService;
 import com.sspku.agent.module.agent.dto.AgentTestRequest;
+import com.sspku.agent.module.agent.dto.ConversationMessage;
 import com.sspku.agent.module.agent.vo.AgentTestResponse;
 import com.sspku.agent.module.knowledge.dto.RagConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -173,13 +177,35 @@ public class WorkflowServiceImpl implements WorkflowService {
     }
 
     @Override
+    public WorkflowDebugResponse executeWorkflow(Long id, WorkflowDebugRequest request) {
+        Workflow wf = workflowMapper.selectById(id);
+        if (wf == null) {
+            throw new BusinessException("工作流不存在");
+        }
+        
+        // 检查工作流状态，必须为 published
+        if (!"published".equals(wf.getStatus())) {
+            throw new BusinessException("只能执行已发布的工作流，当前状态: " + wf.getStatus());
+        }
+        
+        return executeWorkflowInternal(wf, request);
+    }
+
+    @Override
     public WorkflowDebugResponse debugWorkflow(Long id, WorkflowDebugRequest request) {
         Long ownerId = currentUserId();
         Workflow wf = workflowMapper.selectByIdAndOwner(id, ownerId);
         if (wf == null) {
             throw new BusinessException("工作流不存在");
         }
-
+        
+        return executeWorkflowInternal(wf, request);
+    }
+    
+    /**
+     * 工作流执行的核心逻辑（内部方法）
+     */
+    private WorkflowDebugResponse executeWorkflowInternal(Workflow wf, WorkflowDebugRequest request) {
         WorkflowGraph graph = parseGraph(wf.getGraph());
         validateGraphBasic(wf.getGraph());
         
@@ -498,9 +524,57 @@ public class WorkflowServiceImpl implements WorkflowService {
     private WorkflowTraceEvent runLlmNode(WorkflowNode llm, Map<String, Object> inputs, Map<String, Object> vars) {
         long started = Instant.now().toEpochMilli();
         try {
+            // 1. 构建消息列表和内容映射（用于后续转换为 ConversationMessage）
+            List<Message> messages = new ArrayList<>();
+            List<String> messageContents = new ArrayList<>();  // 保存原始内容
+            List<String> messageRoles = new ArrayList<>();      // 保存角色
+            
+            // 2. 添加 System Prompt（如果配置了）
+            String systemPromptText = null;
+            if (StringUtils.hasText(llm.getSystemPrompt())) {
+                String systemPromptTemplate = llm.getSystemPrompt();
+                validateVariables(systemPromptTemplate, inputs, vars);
+                systemPromptText = renderTemplate(systemPromptTemplate, inputs, vars);
+                messages.add(new SystemMessage(systemPromptText));
+                messageContents.add(systemPromptText);
+                messageRoles.add("system");
+            }
+            
+            // 3. 处理会话历史（从 inputs.messages 或 vars.messages）
+            Object messagesRaw = inputs.get("messages");
+            if (messagesRaw == null) {
+                messagesRaw = vars.get("messages");
+            }
+            
+            if (messagesRaw instanceof List<?> messageList) {
+                for (Object msg : messageList) {
+                    if (msg instanceof Map<?, ?> msgMap) {
+                        String role = String.valueOf(msgMap.get("role"));
+                        Object contentObj = msgMap.get("content");
+                        if (contentObj == null) {
+                            continue;
+                        }
+                        String content = String.valueOf(contentObj);
+                        if ("user".equalsIgnoreCase(role)) {
+                            messages.add(new UserMessage(content));
+                            messageContents.add(content);
+                            messageRoles.add("user");
+                        } else if ("assistant".equalsIgnoreCase(role)) {
+                            messages.add(new AssistantMessage(content));
+                            messageContents.add(content);
+                            messageRoles.add("assistant");
+                        }
+                    }
+                }
+            }
+            
+            // 4. 添加当前 prompt（作为最后一条 user 消息）
             String template = StringUtils.hasText(llm.getPrompt()) ? llm.getPrompt() : "请回答：{{inputs.query}}";
             validateVariables(template, inputs, vars);
             String promptText = renderTemplate(template, inputs, vars);
+            messages.add(new UserMessage(promptText));
+            messageContents.add(promptText);
+            messageRoles.add("user");
 
             Map<String, Object> outputData = new HashMap<>();
             String reply;
@@ -511,13 +585,14 @@ public class WorkflowServiceImpl implements WorkflowService {
             String modelName = llm.getModelName();
             
             if (StringUtils.hasText(modelProvider) && StringUtils.hasText(modelName)) {
-                // Direct model call
+                // Direct model call with multi-turn conversation support
                 long modelStarted = Instant.now().toEpochMilli();
                 
-                // Use Spring AI ChatModel directly
-                Prompt prompt = new Prompt(new UserMessage(promptText));
+                // Use Spring AI ChatModel directly with multi-turn messages
+                Prompt prompt = new Prompt(messages);
                 ChatResponse chatResponse = chatModel.call(prompt);
-                reply = chatResponse.getResult().getOutput().toString();
+                // 提取文本内容，而不是对象的字符串表示
+                reply = chatResponse.getResult().getOutput().getText();
                 
                 duration = Instant.now().toEpochMilli() - modelStarted;
                 
@@ -525,6 +600,7 @@ public class WorkflowServiceImpl implements WorkflowService {
                 outputData.put("modelProvider", modelProvider);
                 outputData.put("modelName", modelName);
                 outputData.put("duration", duration);
+                outputData.put("messagesCount", messages.size());
             } else {
                 // Fallback to agent-based call
                 Long agentId = llm.getLlmAgentId();
@@ -532,9 +608,31 @@ public class WorkflowServiceImpl implements WorkflowService {
                     throw new BusinessException("未选择大模型智能体或模型参数");
                 }
                 
+                // 构建 AgentTestRequest，支持多轮对话
                 AgentTestRequest request = new AgentTestRequest();
                 request.setQuestion(promptText);
                 request.setRagConfig(new RagConfig());
+                
+                // 如果有历史消息，转换为 AgentTestRequest 的 messages 格式
+                if (messageContents.size() > 1) {  // 除了最后一条 user 消息外还有其他消息
+                    List<ConversationMessage> agentMessages = new ArrayList<>();
+                    for (int i = 0; i < messageContents.size() - 1; i++) {  // 排除最后一条（当前 prompt）
+                        String role = messageRoles.get(i);
+                        String content = messageContents.get(i);
+                        if ("system".equalsIgnoreCase(role)) {
+                            // SystemMessage 会被 agent 的 systemPrompt 处理，这里跳过
+                            continue;
+                        } else if ("user".equalsIgnoreCase(role) || "assistant".equalsIgnoreCase(role)) {
+                            ConversationMessage agentMsg = new ConversationMessage();
+                            agentMsg.setRole(role);
+                            agentMsg.setContent(content);
+                            agentMessages.add(agentMsg);
+                        }
+                    }
+                    if (!agentMessages.isEmpty()) {
+                        request.setMessages(agentMessages);
+                    }
+                }
 
                 AgentTestResponse response = agentService.testAgent(agentId, request);
                 reply = response.getReply();
@@ -543,6 +641,7 @@ public class WorkflowServiceImpl implements WorkflowService {
                 outputData.put("text", reply);
                 outputData.put("agentId", agentId);
                 outputData.put("duration", duration);
+                outputData.put("messagesCount", messages.size());
             }
 
             long finished = Instant.now().toEpochMilli();
@@ -553,7 +652,7 @@ public class WorkflowServiceImpl implements WorkflowService {
                     .status("success")
                     .startedAt(started)
                     .finishedAt(finished)
-                    .input(Map.of("prompt", promptText))
+                    .input(Map.of("prompt", promptText, "messagesCount", messages.size()))
                     .output(outputData)
                     .build();
         } catch (Exception e) {

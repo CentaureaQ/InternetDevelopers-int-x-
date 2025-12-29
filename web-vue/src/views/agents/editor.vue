@@ -128,6 +128,30 @@
                   />
                 </el-select>
               </el-form-item>
+              
+              <el-form-item label="关联工作流">
+                <el-select
+                  v-model="formData.workflowId"
+                  placeholder="选择已发布的工作流（可选）"
+                  clearable
+                  filterable
+                >
+                  <el-option
+                    v-for="workflow in publishedWorkflows"
+                    :key="workflow.id"
+                    :label="`${workflow.name} (ID: ${workflow.id})`"
+                    :value="workflow.id"
+                  >
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <span>{{ workflow.name }}</span>
+                      <span style="color: var(--text-secondary); font-size: 12px;">ID: {{ workflow.id }}</span>
+                    </div>
+                  </el-option>
+                </el-select>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                  选择工作流后，智能体将使用工作流执行逻辑，而不是传统的 LLM 调用
+                </div>
+              </el-form-item>
             </div>
 
             <!-- RAG 配置 -->
@@ -281,6 +305,7 @@ import { listPlugins } from '@/api/plugin'
 import type { Plugin } from '@/api/plugin'
 import { fetchKnowledgeBases } from '@/api/knowledge'
 import type { KnowledgeBaseVO } from '@/api/knowledge'
+import { fetchWorkflows, type WorkflowVO } from '@/api/workflow'
 
 const router = useRouter()
 const route = useRoute()
@@ -299,6 +324,7 @@ const chatMessages = ref<Array<{
 const chatContainer = ref<HTMLDivElement | null>(null)
 const plugins = ref<Plugin[]>([])
 const knowledgeBases = ref<KnowledgeBaseVO[]>([])
+const publishedWorkflows = ref<WorkflowVO[]>([])
 
 const formData = reactive({
   name: '',
@@ -311,6 +337,7 @@ const formData = reactive({
   greeting: '你好！我是你的AI助手，有什么可以帮助你的吗？',
   pluginIds: [] as number[],
   knowledgeBaseId: undefined as number | undefined,
+  workflowId: undefined as number | undefined,
   ragConfig: {
     topK: 3,
     threshold: 0.2,
@@ -339,6 +366,15 @@ async function loadKnowledgeBases() {
   } catch (error) {
     console.error('加载知识库列表失败', error)
     ElMessage.error('加载知识库列表失败')
+  }
+}
+
+async function loadPublishedWorkflows() {
+  try {
+    const data = await fetchWorkflows({ status: 'published', pageNo: 1, pageSize: 100 })
+    publishedWorkflows.value = data?.records || []
+  } catch (error) {
+    console.error('加载已发布工作流失败', error)
   }
 }
 
@@ -386,6 +422,7 @@ async function saveDraft() {
       },
       pluginIds: formData.pluginIds,
       knowledgeBaseId: formData.knowledgeBaseId,
+      workflowId: formData.workflowId,
       ragConfig: formData.ragConfig
     }
     
@@ -436,6 +473,7 @@ async function publishAgent() {
       },
       pluginIds: formData.pluginIds,
       knowledgeBaseId: formData.knowledgeBaseId,
+      workflowId: formData.workflowId,
       ragConfig: formData.ragConfig
     }
     
@@ -605,6 +643,7 @@ function formatTime(timestamp: number) {
 onMounted(async () => {
   await loadPlugins()
   await loadKnowledgeBases()
+  await loadPublishedWorkflows()
   const routeAgentId = route.params.id
   // 只有当ID存在且是有效数字时才进入编辑模式
   if (routeAgentId && !isNaN(Number(routeAgentId))) {
@@ -625,6 +664,7 @@ onMounted(async () => {
         formData.topP = agent.modelConfig?.topP ?? 0.9
         formData.pluginIds = agent.pluginIds || []
         formData.knowledgeBaseId = agent.knowledgeBaseId
+        formData.workflowId = agent.workflowId
         if (agent.ragConfig) {
           formData.ragConfig = agent.ragConfig
         }

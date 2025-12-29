@@ -37,6 +37,8 @@ public class AgentCreateRequest {
 
     private RagConfig ragConfig;
 
+    private Long workflowId; // 关联的工作流ID（可选）
+
     /**
      * 可选：显式指定智能体归属的用户ID；若不传则自动读取当前登录用户
      */

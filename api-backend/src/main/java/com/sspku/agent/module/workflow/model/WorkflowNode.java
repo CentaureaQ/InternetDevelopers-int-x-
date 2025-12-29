@@ -35,7 +35,8 @@ public class WorkflowNode {
 
     // llm (legacy + doc-style)
     private Long llmAgentId;
-    private String prompt;
+    private String systemPrompt;  // 系统提示词
+    private String prompt;         // 用户提示词
     private String llmOutputKey;
     private java.util.List<Long> pluginIds;
     // direct model selection (bypassing agent)

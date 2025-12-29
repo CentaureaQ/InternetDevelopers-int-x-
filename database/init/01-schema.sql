@@ -81,10 +81,12 @@ CREATE TABLE IF NOT EXISTS `agent` (
     `user_prompt_template` TEXT COMMENT '用户提示词模板',
     `model_config` JSON COMMENT '模型配置: {"provider": "deepseek", "model": "deepseek-chat", "temperature": 0.7}',
     `rag_config` JSON COMMENT 'RAG配置: {"topK": 3, "threshold": 0.6, "maxContextLength": 2000}',
+    `workflow_id` BIGINT NULL COMMENT '关联的工作流ID',
     `status` VARCHAR(20) DEFAULT 'draft' COMMENT '状态: draft(草稿)/published(已发布)',
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    INDEX `idx_status` (`status`)
+    INDEX `idx_status` (`status`),
+    INDEX `idx_workflow_id` (`workflow_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='智能体表';
 
 -- ============================================

@@ -31,4 +31,6 @@ public class AgentUpdateRequest {
     private Long knowledgeBaseId;
 
     private RagConfig ragConfig;
+
+    private Long workflowId; // 关联的工作流ID（可选，传 null 表示清空关联）
 }

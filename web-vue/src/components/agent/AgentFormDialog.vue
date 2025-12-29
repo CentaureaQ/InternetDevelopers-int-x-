@@ -49,6 +49,31 @@
           style="width: 100%"
         />
       </el-form-item>
+      
+      <el-form-item label="关联工作流">
+        <el-select 
+          v-model="formData.workflowId" 
+          placeholder="选择已发布的工作流（可选）" 
+          style="width: 100%" 
+          clearable
+          filterable
+        >
+          <el-option
+            v-for="workflow in publishedWorkflows"
+            :key="workflow.id"
+            :label="`${workflow.name} (ID: ${workflow.id})`"
+            :value="workflow.id"
+          >
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span>{{ workflow.name }}</span>
+              <span style="color: var(--text-secondary); font-size: 12px;">ID: {{ workflow.id }}</span>
+            </div>
+          </el-option>
+        </el-select>
+        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+          选择工作流后，智能体将使用工作流执行逻辑，而不是传统的 LLM 调用
+        </div>
+      </el-form-item>
     </el-form>
 
     <template #footer>
@@ -61,8 +86,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import type { AgentVO } from '@/api/agent'
+import { fetchWorkflows, type WorkflowVO } from '@/api/workflow'
 
 interface FormData {
   name: string
@@ -73,6 +99,7 @@ interface FormData {
     model: string
     temperature: number
   }
+  workflowId?: number
 }
 
 const props = defineProps<{
@@ -88,6 +115,7 @@ const emit = defineEmits<{
 
 const visible = ref(props.modelValue)
 const isEdit = ref(false)
+const publishedWorkflows = ref<WorkflowVO[]>([])
 
 const formData = ref<FormData>({
   name: '',
@@ -97,7 +125,8 @@ const formData = ref<FormData>({
     provider: 'deepseek',
     model: 'deepseek-chat',
     temperature: 0.7
-  }
+  },
+  workflowId: undefined
 })
 
 watch(() => props.modelValue, (val) => {
@@ -113,7 +142,8 @@ watch(() => props.modelValue, (val) => {
         provider: modelConfig.provider,
         model: modelConfig.model,
         temperature: modelConfig.temperature ?? 0.7
-      }
+      },
+      workflowId: props.agent.workflowId
     }
   } else {
     isEdit.value = false
@@ -125,6 +155,15 @@ watch(visible, (val) => {
   emit('update:modelValue', val)
 })
 
+async function loadPublishedWorkflows() {
+  try {
+    const data = await fetchWorkflows({ status: 'published', pageNo: 1, pageSize: 100 })
+    publishedWorkflows.value = data?.records || []
+  } catch (error) {
+    console.error('加载已发布工作流失败', error)
+  }
+}
+
 function resetForm() {
   formData.value = {
     name: '',
@@ -134,9 +173,14 @@ function resetForm() {
       provider: 'deepseek',
       model: 'deepseek-chat',
       temperature: 0.7
-    }
+    },
+    workflowId: undefined
   }
 }
+
+onMounted(() => {
+  loadPublishedWorkflows()
+})
 
 function handleClose() {
   visible.value = false

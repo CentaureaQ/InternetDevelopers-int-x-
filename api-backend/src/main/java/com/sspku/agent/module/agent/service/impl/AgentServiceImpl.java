@@ -26,7 +26,9 @@ import com.sspku.agent.module.knowledge.service.RagService;
 import com.sspku.agent.module.knowledge.mapper.AgentKnowledgeRelationMapper;
 import com.sspku.agent.module.user.entity.User;
 import com.sspku.agent.module.agent.tool.PluginToolFactory;
-import lombok.RequiredArgsConstructor;
+import com.sspku.agent.module.workflow.service.WorkflowService;
+import com.sspku.agent.module.workflow.dto.WorkflowDebugRequest;
+import com.sspku.agent.module.workflow.vo.WorkflowDebugResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.SystemMessage;
@@ -43,6 +45,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.context.annotation.Lazy;
 
 import java.time.Instant;
 import java.util.*;
@@ -53,7 +56,6 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AgentServiceImpl implements AgentService {
 
     private final AgentMapper agentMapper;
@@ -64,9 +66,33 @@ public class AgentServiceImpl implements AgentService {
     private final PluginToolFactory pluginToolFactory;
     private final RagService ragService;
     private final AgentKnowledgeRelationMapper agentKnowledgeRelationMapper;
+    private final WorkflowService workflowService;
 
     // Spring AI 聊天模型（使用自动配置的默认模型）
     private final ChatModel chatModel;
+
+    public AgentServiceImpl(
+            AgentMapper agentMapper,
+            AgentPluginRelationMapper agentPluginRelationMapper,
+            UserAgentRelationMapper userAgentRelationMapper,
+            UserPluginRelationMapper userPluginRelationMapper,
+            ObjectMapper objectMapper,
+            PluginToolFactory pluginToolFactory,
+            RagService ragService,
+            AgentKnowledgeRelationMapper agentKnowledgeRelationMapper,
+            @Lazy WorkflowService workflowService,
+            ChatModel chatModel) {
+        this.agentMapper = agentMapper;
+        this.agentPluginRelationMapper = agentPluginRelationMapper;
+        this.userAgentRelationMapper = userAgentRelationMapper;
+        this.userPluginRelationMapper = userPluginRelationMapper;
+        this.objectMapper = objectMapper;
+        this.pluginToolFactory = pluginToolFactory;
+        this.ragService = ragService;
+        this.agentKnowledgeRelationMapper = agentKnowledgeRelationMapper;
+        this.workflowService = workflowService;
+        this.chatModel = chatModel;
+    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -86,7 +112,10 @@ public class AgentServiceImpl implements AgentService {
                 throw new BusinessException("RAG配置序列化失败");
             }
         }
+        agent.setWorkflowId(request.getWorkflowId());
         agent.setStatus("draft");
+        
+        log.info("创建智能体: name={}, workflowId={}", request.getName(), request.getWorkflowId());
 
         agentMapper.insert(agent);
         userAgentRelationMapper.upsertOwner(ownerUserId, agent.getId());
@@ -128,6 +157,13 @@ public class AgentServiceImpl implements AgentService {
                 throw new BusinessException("RAG配置序列化失败");
             }
         }
+
+        // 处理 workflowId：总是更新（包括设置为 null 的情况）
+        // 注意：由于 Java 无法区分 null 和未设置，这里简化处理：总是更新 workflowId
+        // 如果需要清空关联，前端需要显式传入 null
+        Long oldWorkflowId = agent.getWorkflowId();
+        agent.setWorkflowId(request.getWorkflowId());
+        log.info("更新智能体 {} 的 workflowId: {} -> {}", id, oldWorkflowId, request.getWorkflowId());
 
         if (request.getKnowledgeBaseId() != null) {
             saveAgentKnowledgeBase(id, request.getKnowledgeBaseId());
@@ -253,6 +289,56 @@ public class AgentServiceImpl implements AgentService {
             throw new BusinessException("智能体不存在");
         }
 
+        // 如果配置了工作流，优先使用工作流执行
+        if (agent.getWorkflowId() != null) {
+            try {
+                // 构建工作流输入
+                Map<String, Object> workflowInputs = new HashMap<>();
+                workflowInputs.put("query", request.getQuestion());
+                
+                // 如果有会话历史，转换为工作流输入格式
+                if (request.getMessages() != null && !request.getMessages().isEmpty()) {
+                    List<Map<String, Object>> messagesList = new ArrayList<>();
+                    for (var msg : request.getMessages()) {
+                        Map<String, Object> msgMap = new HashMap<>();
+                        msgMap.put("role", msg.getRole());
+                        msgMap.put("content", msg.getContent());
+                        if (msg.getTimestamp() != null) {
+                            msgMap.put("timestamp", msg.getTimestamp());
+                        }
+                        messagesList.add(msgMap);
+                    }
+                    workflowInputs.put("messages", messagesList);
+                }
+                
+                // 执行工作流
+                WorkflowDebugRequest workflowRequest = new WorkflowDebugRequest();
+                workflowRequest.setInputs(workflowInputs);
+                WorkflowDebugResponse workflowResponse = workflowService.executeWorkflow(
+                    agent.getWorkflowId(), workflowRequest);
+                
+                // 提取工作流输出
+                long workflowStart = Instant.now().toEpochMilli();
+                String reply = extractWorkflowOutput(workflowResponse);
+                long elapsed = Instant.now().toEpochMilli() - workflowStart;
+                
+                return AgentTestResponse.builder()
+                    .reply(reply)
+                    .elapsedMs((int) elapsed)
+                    .promptTokens(0)  // 工作流执行不统计 token
+                    .completionTokens(0)
+                    .build();
+                    
+            } catch (Exception e) {
+                // 工作流执行失败，直接抛出错误，不回退
+                log.error("工作流执行失败: workflowId={}, error={}", agent.getWorkflowId(), e.getMessage(), e);
+                throw new BusinessException("工作流执行失败: " + e.getMessage());
+            }
+        } else {
+            log.info("智能体 {} 使用传统 LLM 模式执行（未配置工作流）", id);
+        }
+
+        // 无工作流，执行传统 LLM 逻辑
         // 解析模型配置
         ModelConfig modelConfig = readModelConfig(agent.getModelConfig());
         if (modelConfig == null || !StringUtils.hasText(modelConfig.getModel())) {
@@ -432,6 +518,47 @@ public class AgentServiceImpl implements AgentService {
         }
     }
 
+    /**
+     * 从工作流响应中提取输出
+     */
+    private String extractWorkflowOutput(WorkflowDebugResponse response) {
+        if (response == null || response.getOutput() == null) {
+            throw new BusinessException("工作流执行失败：未返回输出");
+        }
+        
+        Object output = response.getOutput();
+        
+        // 如果输出是 Map，尝试提取常见的输出键
+        if (output instanceof Map<?, ?> outputMap) {
+            // 优先查找 "answer"
+            Object answer = outputMap.get("answer");
+            if (answer != null) {
+                return String.valueOf(answer);
+            }
+            
+            // 其次查找 "result"
+            Object result = outputMap.get("result");
+            if (result != null) {
+                return String.valueOf(result);
+            }
+            
+            // 如果只有一个键值对，返回该值
+            if (outputMap.size() == 1) {
+                return String.valueOf(outputMap.values().iterator().next());
+            }
+            
+            // 否则返回整个输出的 JSON 字符串
+            try {
+                return objectMapper.writeValueAsString(output);
+            } catch (JsonProcessingException e) {
+                return output.toString();
+            }
+        }
+        
+        // 如果输出是字符串，直接返回
+        return String.valueOf(output);
+    }
+
     private Long getKnowledgeBaseId(Long agentId) {
         List<Long> kbIds = agentKnowledgeRelationMapper.selectKbIdsByAgentId(agentId);
         if (CollectionUtils.isEmpty(kbIds)) {
@@ -453,6 +580,7 @@ public class AgentServiceImpl implements AgentService {
                 .ownerUserId(ownerUserId)
                 .knowledgeBaseId(getKnowledgeBaseId(agent.getId()))
                 .ragConfig(readRagConfig(agent.getRagConfig()))
+                .workflowId(agent.getWorkflowId())
                 .status(agent.getStatus())
                 .createdAt(agent.getCreatedAt())
                 .updatedAt(agent.getUpdatedAt())

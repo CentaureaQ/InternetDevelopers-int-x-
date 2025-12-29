@@ -15,6 +15,8 @@ public interface WorkflowMapper {
 
     Workflow selectByIdAndOwner(@Param("id") Long id, @Param("ownerUserId") Long ownerUserId);
 
+    Workflow selectById(@Param("id") Long id);
+
     int deleteByIdAndOwner(@Param("id") Long id, @Param("ownerUserId") Long ownerUserId);
 
     int updateStatus(@Param("id") Long id, @Param("ownerUserId") Long ownerUserId, @Param("status") String status);

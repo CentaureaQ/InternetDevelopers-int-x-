@@ -24,6 +24,7 @@ public class AgentVO {
     private Long ownerUserId;
     private Long knowledgeBaseId;
     private RagConfig ragConfig;
+    private Long workflowId; // 关联的工作流ID
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
