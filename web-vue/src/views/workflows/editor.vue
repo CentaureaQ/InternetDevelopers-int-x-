@@ -359,22 +359,22 @@
                         <span
                           :class="[
                             'node-debug-icon',
-                            traceByNodeId[node.id].at(-1).status === 'success'
+                            traceByNodeId[node.id]?.at(-1)?.status === 'success'
                               ? 'is-success'
-                              : traceByNodeId[node.id].at(-1).status === 'error'
+                              : traceByNodeId[node.id]?.at(-1)?.status === 'error'
                                 ? 'is-error'
                                 : 'is-unknown'
                           ]"
                           aria-hidden="true"
                         >
-                          {{ traceByNodeId[node.id].at(-1).status === 'success' ? '✓' : traceByNodeId[node.id].at(-1).status === 'error' ? '!' : '·' }}
+                          {{ traceByNodeId[node.id]?.at(-1)?.status === 'success' ? '✓' : traceByNodeId[node.id]?.at(-1)?.status === 'error' ? '!' : '·' }}
                         </span>
                         <span class="node-debug-title">
-                          {{ traceByNodeId[node.id].at(-1).status === 'success' ? '运行成功' : traceByNodeId[node.id].at(-1).status === 'error' ? '运行失败' : '运行状态' }}
-                          <span class="node-debug-count">(执行 {{ traceByNodeId[node.id].length }} 次)</span>
+                          {{ traceByNodeId[node.id]?.at(-1)?.status === 'success' ? '运行成功' : traceByNodeId[node.id]?.at(-1)?.status === 'error' ? '运行失败' : '运行状态' }}
+                          <span class="node-debug-count">(执行 {{ traceByNodeId[node.id]?.length || 0 }} 次)</span>
                         </span>
-                        <span v-if="traceByNodeId[node.id].at(-1).startedAt != null && traceByNodeId[node.id].at(-1).finishedAt != null" class="node-debug-time">
-                          {{ formatDurationSeconds(traceByNodeId[node.id].at(-1)) }}
+                        <span v-if="traceByNodeId[node.id]?.at(-1)?.startedAt != null && traceByNodeId[node.id]?.at(-1)?.finishedAt != null" class="node-debug-time">
+                          {{ traceByNodeId[node.id]?.at(-1) ? formatDurationSeconds(traceByNodeId[node.id]?.at(-1)!) : '' }}
                         </span>
                       </div>
                       <div class="node-debug-right">
@@ -383,19 +383,19 @@
                     </summary>
 
                     <div class="node-debug-body">
-                      <div v-if="traceByNodeId[node.id].at(-1).error" class="node-debug-error">
-                        {{ traceByNodeId[node.id].at(-1).error }}
+                      <div v-if="traceByNodeId[node.id]?.at(-1)?.error" class="node-debug-error">
+                        {{ traceByNodeId[node.id]?.at(-1)?.error }}
                       </div>
 
                       <div class="node-debug-label">最新输出</div>
-                      <div v-if="node.type === 'textToImageNodeState' && traceByNodeId[node.id].at(-1).output && traceByNodeId[node.id].at(-1).output.url" class="node-debug-image-preview">
-                        <img :src="traceByNodeId[node.id].at(-1).output.url" alt="Generated Image" @error="handleImageError" />
+                      <div v-if="node.type === 'textToImageNodeState' && traceByNodeId[node.id]?.at(-1)?.output && traceByNodeId[node.id]?.at(-1)?.output.url" class="node-debug-image-preview">
+                        <img :src="traceByNodeId[node.id]?.at(-1)?.output.url" alt="Generated Image" @error="handleImageError" />
                         <div class="node-debug-image-actions">
-                          <el-button size="small" type="primary" @click="openImage(traceByNodeId[node.id].at(-1).output.url)">打开图片</el-button>
-                          <el-button size="small" @click="copyImageUrl(traceByNodeId[node.id].at(-1).output.url)">复制URL</el-button>
+                          <el-button size="small" type="primary" @click="openImage(traceByNodeId[node.id]?.at(-1)?.output.url)">打开图片</el-button>
+                          <el-button size="small" @click="copyImageUrl(traceByNodeId[node.id]?.at(-1)?.output.url)">复制URL</el-button>
                         </div>
                       </div>
-                      <pre v-else class="node-debug-pre">{{ prettyJson(traceByNodeId[node.id].at(-1).output) }}</pre>
+                      <pre v-else class="node-debug-pre">{{ prettyJson(traceByNodeId[node.id]?.at(-1)?.output) }}</pre>
                     </div>
                   </details>
                 </template>
@@ -2090,6 +2090,7 @@ interface CanvasNode {
   y: number
   // llm
   llmAgentId?: number
+  systemPrompt?: string
   prompt?: string
   llmOutputKey?: string
   pluginIds?: number[]

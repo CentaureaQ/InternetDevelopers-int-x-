@@ -11,6 +11,8 @@ services:
     restart: unless-stopped
     ports:
       - "${BACKEND_PORT:-8080}:8080"
+    env_file:
+      - .env
     environment:
       # 激活生产环境配置
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
@@ -26,7 +28,7 @@ services:
       SPRING_AI_DASHSCOPE_READ_TIMEOUT: 120000
       
       # JWT 配置
-      JWT_SECRET: ${JWT_SECRET}
+      # JWT_SECRET: ${JWT_SECRET}  # 从.env文件读取
 
       # 远程数据库配置
       DATASOURCE_URL: jdbc:mysql://10.129.83.19:3306/ai_platform?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&characterEncoding=UTF-8

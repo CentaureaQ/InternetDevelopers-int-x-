@@ -343,6 +343,7 @@ public class WorkflowServiceImpl implements WorkflowService {
                             String branch = (String) conditionResult.get("branch");
                             if (branch != null) {
                                 conditionNodeResults.put(node.getId(), branch);
+                                log.info("条件节点 {} 执行完成，更新conditionNodeResults: {}", node.getId(), conditionNodeResults);
                             }
                         }
                     }
@@ -943,41 +944,82 @@ public class WorkflowServiceImpl implements WorkflowService {
             return true;
         }
 
+        // 找到所有指向当前节点的边
+        List<WorkflowEdge> incomingEdges = new ArrayList<>();
         for (WorkflowEdge edge : edges) {
-            if (edge == null || !StringUtils.hasText(edge.getTo()) || !edge.getTo().equals(node.getId())) {
-                continue;
-            }
-
-            if (!StringUtils.hasText(edge.getFrom())) {
-                continue;
-            }
-
-            String fromNodeId = edge.getFrom();
-            if (!conditionNodeResults.containsKey(fromNodeId)) {
-                continue;
-            }
-
-            String edgeLabel = edge.getLabel();
-            String conditionResult = conditionNodeResults.get(fromNodeId);
-
-            if (StringUtils.hasText(edgeLabel)) {
-                if (!StringUtils.hasText(conditionResult)) {
-                    return false;
-                }
-
-                if ("true".equalsIgnoreCase(edgeLabel) && !"if".equals(conditionResult)) {
-                    return false;
-                }
-                if ("false".equalsIgnoreCase(edgeLabel) && "if".equals(conditionResult)) {
-                    return false;
-                }
-                if ("else".equalsIgnoreCase(edgeLabel) && !"else".equals(conditionResult)) {
-                    return false;
-                }
+            if (edge != null && StringUtils.hasText(edge.getTo()) && edge.getTo().equals(node.getId())) {
+                incomingEdges.add(edge);
             }
         }
 
-        return true;
+        if (incomingEdges.isEmpty()) {
+            return true;
+        }
+
+        // 检查是否有来自条件节点的边
+        boolean hasConditionEdges = false;
+        for (WorkflowEdge edge : incomingEdges) {
+            if (StringUtils.hasText(edge.getFrom()) && conditionNodeResults.containsKey(edge.getFrom())) {
+                hasConditionEdges = true;
+                break;
+            }
+        }
+
+        // 如果没有来自条件节点的边，直接执行
+        if (!hasConditionEdges) {
+            return true;
+        }
+
+        log.info("检查节点 {} 是否应该执行，有 {} 条入边，条件节点结果：{}", node.getId(), incomingEdges.size(), conditionNodeResults);
+
+        // 如果有来自条件节点的边，检查是否至少有一条边满足条件
+        for (WorkflowEdge edge : incomingEdges) {
+            String edgeFrom = edge.getFrom();
+            String edgeLabel = edge.getLabel();
+            
+            // 如果这条边不是来自条件节点，跳过条件检查
+            if (!StringUtils.hasText(edgeFrom) || !conditionNodeResults.containsKey(edgeFrom)) {
+                continue;
+            }
+
+            String conditionResult = conditionNodeResults.get(edgeFrom);
+
+            log.info("检查条件边：from={}, to={}, label={}, 条件结果={}", edgeFrom, edge.getTo(), edgeLabel, conditionResult);
+
+            if (!StringUtils.hasText(edgeLabel)) {
+                // 对于来自条件节点的边，必须有标签才能决定是否执行
+                log.info("条件节点 {} 的边没有标签，跳过此边", edgeFrom);
+                continue;
+            }
+
+            if (!StringUtils.hasText(conditionResult)) {
+                log.info("条件结果为空，跳过边");
+                continue;
+            }
+
+            // 检查这条边是否满足条件
+            boolean edgeMatched = false;
+            if ("true".equalsIgnoreCase(edgeLabel) && "if".equals(conditionResult)) {
+                edgeMatched = true;
+                log.info("true分支匹配，执行节点 {}", node.getId());
+            } else if ("false".equalsIgnoreCase(edgeLabel) && ("false".equals(conditionResult) || "else".equals(conditionResult))) {
+                edgeMatched = true;
+                log.info("false分支匹配，执行节点 {}", node.getId());
+            } else if ("else".equalsIgnoreCase(edgeLabel) && "else".equals(conditionResult)) {
+                edgeMatched = true;
+                log.info("else分支匹配，执行节点 {}", node.getId());
+            } else {
+                log.info("边不匹配：label={}, conditionResult={}", edgeLabel, conditionResult);
+            }
+
+            if (edgeMatched) {
+                return true;
+            }
+        }
+
+        // 没有任何条件边满足，不执行
+        log.info("没有边匹配，跳过节点 {}", node.getId());
+        return false;
     }
 
     private String normalizeType(String rawType) {
@@ -1449,6 +1491,7 @@ public class WorkflowServiceImpl implements WorkflowService {
                 List<Map<String, Object>> conditions = (List<Map<String, Object>>) branch.get("conditions");
 
                 if ("else".equalsIgnoreCase(branchType)) {
+                    // else分支不应该有条件，忽略条件直接匹配
                     if (!matched) {
                         matched = true;
                         matchedBranch = "else";
@@ -1468,6 +1511,10 @@ public class WorkflowServiceImpl implements WorkflowService {
                                 branchMatched = false;
                                 break;
                             }
+                        } else {
+                            // 如果条件配置不正确（缺少必要的参数），条件不匹配
+                            branchMatched = false;
+                            break;
                         }
                     }
 
@@ -1485,6 +1532,8 @@ public class WorkflowServiceImpl implements WorkflowService {
             result.put("matched", matched);
             result.put("branch", matchedBranch != null ? matchedBranch : "false");
             result.put("matchedCondition", matchedCondition);
+
+            log.info("条件节点 {} 执行结果：matched={}, branch={}", node.getId(), matched, matchedBranch != null ? matchedBranch : "false");
 
             long finished = Instant.now().toEpochMilli();
             Map<String, Object> out = Map.of(outputKey, result);
